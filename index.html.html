@@ -4,19 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>CAIFU - App Oficial</title>
-    <meta name="theme-color" content="#7f1d1d">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #000; color: white; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
+        body { font-family: 'Inter', sans-serif; background-color: #000; color: white; }
         #loader { position: fixed; inset: 0; background: #7f1d1d; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; }
         .animate-fade-in { animation: fade-in 0.4s ease-out forwards; }
         @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .carousel-container { position: absolute; inset: 0; z-index: 0; background: #000; }
-        .carousel-slide { position: absolute; inset: 0; background-size: cover; background-position: center; transition: opacity 1.5s ease; opacity: 0; }
-        .carousel-slide.active { opacity: 0.5; }
-        .bg-overlay { position: absolute; inset: 0; background: linear-gradient(to top, black, transparent, rgba(0,0,0,0.8)); z-index: 5; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 
     <script type="module">
@@ -42,7 +36,7 @@
 <body>
     <div id="loader">
         <div style="font-size: 32px; font-weight: 800; font-style: italic;">CAIFU</div>
-        <div style="font-size: 10px; margin-top: 10px; letter-spacing: 2px;">CONECTANDO NUBE...</div>
+        <div style="font-size: 10px; margin-top: 10px; letter-spacing: 2px;">SINCRONIZANDO NUBE...</div>
     </div>
     <div id="root"></div>
 
@@ -51,107 +45,82 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
 <script type="text/babel">
-    const { useState, useEffect, useRef } = React;
-
-    const Icons = {
-        Plus: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>,
-        Minus: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M5 12h14"/></svg>,
-        Trash: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg>,
-        Home: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>,
-        Cart: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>,
-        Check: () => <svg width="30" height="30" fill="none" stroke="#22c55e" strokeWidth="4" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
-    };
+    const { useState, useEffect } = React;
 
     const App = () => {
         const [isAdmin, setIsAdmin] = useState(window.location.search.includes('admin=true'));
-        const [config, setConfig] = useState({ pin:"1234", bg:[], loc:{lat:0,lng:0}, zones:[] });
-        const [menuData, setMenuData] = useState({});
+        const [menuData, setMenuData] = useState(null);
         const [orders, setOrders] = useState([]);
-        const [view, setView] = useState('home');
-        const [cart, setCart] = useState([]);
-        const [isCartOpen, setIsCartOpen] = useState(false);
-        const [orderSuccess, setOrderSuccess] = useState(false);
 
         useEffect(() => {
             if (!window.db) return;
             const { onValue, ref } = window.dbRefs;
-            onValue(ref(window.db, 'config'), s => s.exists() && setConfig(s.val()));
-            onValue(ref(window.db, 'menu'), s => s.exists() && setMenuData(s.val()));
+            
+            // Escuchar Menú
+            onValue(ref(window.db, 'menu'), s => {
+                setMenuData(s.exists() ? s.val() : {});
+                document.getElementById('loader').style.display='none';
+            });
+
+            // Escuchar Pedidos
             onValue(ref(window.db, 'orders'), s => {
                 if(s.exists()) setOrders(Object.keys(s.val()).map(k => ({...s.val()[k], fid: k})).reverse());
                 else setOrders([]);
             });
-            setTimeout(() => document.getElementById('loader').style.display='none', 1000);
         }, []);
 
-        if (isAdmin) return <AdminPanel menuData={menuData} orders={orders} onExit={()=>setIsAdmin(false)} />;
+        const initBase = () => {
+            const { set, ref } = window.dbRefs;
+            set(ref(window.db, 'menu/GENERAL'), [{id: Date.now(), name: "Plato de Prueba", price: 10000}]);
+        };
+
+        if (isAdmin) {
+            return (
+                <div className="p-6 bg-zinc-950 min-h-screen">
+                    <h1 className="text-yellow-500 font-black text-2xl mb-6">PANEL ADMIN CAIFU</h1>
+                    <button onClick={initBase} className="w-full bg-green-600 py-4 rounded-2xl font-black mb-10 uppercase text-xs">
+                        + CREAR PRIMER PLATO (RESCATE)
+                    </button>
+                    <div className="space-y-4">
+                        <h2 className="text-zinc-500 font-black text-[10px] uppercase">Pedidos Recientes</h2>
+                        {orders.map(o => (
+                            <div key={o.fid} className="p-4 bg-zinc-900 rounded-3xl border border-zinc-800">
+                                <p className="text-yellow-500 font-bold text-xs uppercase">{o.name}</p>
+                                <p className="text-xl font-black">${o.total?.toLocaleString()}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
 
         return (
-            <div className="min-h-screen bg-white text-zinc-900">
-                {view === 'home' ? (
-                    <div className="h-screen bg-black flex flex-col justify-between p-10 relative overflow-hidden text-white">
-                        <div className="z-10 text-center pt-10">
-                            <h1 className="text-7xl font-black italic uppercase tracking-tighter">CAIFU</h1>
-                        </div>
-                        <button onClick={()=>setView('menu')} className="z-10 w-full bg-yellow-400 py-6 rounded-full font-black text-xl text-black shadow-2xl uppercase tracking-widest">Pedir Ahora</button>
+            <div className="min-h-screen bg-white text-zinc-900 p-6">
+                <header className="text-center py-10">
+                    <h1 className="text-5xl font-black italic tracking-tighter">CAIFU</h1>
+                </header>
+                {(!menuData || Object.keys(menuData).length === 0) ? (
+                    <div className="text-center py-20">
+                        <p className="text-zinc-400 font-bold uppercase text-xs mb-4">El menú está vacío</p>
+                        <button onClick={() => window.location.search = '?admin=true'} className="bg-black text-white px-8 py-3 rounded-full font-black text-[10px]">
+                            IR AL ADMIN PARA AGREGAR PLATOS
+                        </button>
                     </div>
                 ) : (
-                    <div className="animate-fade-in">
-                        <header className="sticky top-0 bg-white/95 backdrop-blur-xl p-5 border-b flex justify-between items-center z-50">
-                            <button onClick={()=>setView('home')} className="p-2 bg-zinc-100 rounded-full"><Icons.Home/></button>
-                            <span className="font-black italic uppercase text-lg">MENU CAIFU</span>
-                            <button onClick={()=>setIsCartOpen(true)} className="relative p-2 bg-zinc-900 text-white rounded-full">
-                                <Icons.Cart/>
-                                {cart.length > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-black">{cart.reduce((a,b)=>a+b.qty,0)}</span>}
-                            </button>
-                        </header>
-                        <main className="p-6 space-y-12 pb-24">
-                            {Object.keys(menuData).length === 0 ? <p className="text-center py-20 text-zinc-400 uppercase font-black text-xs">Cargando el Menú...</p> : 
-                                Object.keys(menuData).map(cat => (
-                                    <div key={cat}>
-                                        <h2 className="text-3xl font-black border-l-[10px] border-yellow-400 pl-4 mb-8 uppercase italic tracking-tighter">{cat}</h2>
-                                        <div className="grid gap-6">
-                                            {menuData[cat].map(i => (
-                                                <div key={i.id} className="bg-white p-3 rounded-[2.5rem] flex gap-4 items-center shadow-2xl border border-zinc-50">
-                                                    <div className="flex-1 pr-2">
-                                                        <h3 className="font-black text-sm text-zinc-800 uppercase mb-0.5">{i.name}</h3>
-                                                        <div className="flex justify-between items-center mt-3">
-                                                            <span className="text-red-600 font-black text-xl italic">${i.price.toLocaleString()}</span>
-                                                            <button onClick={()=>{
-                                                                const ex = cart.find(x => x.id === i.id);
-                                                                if(ex) setCart(cart.map(x=>x.id===i.id?{...x,qty:x.qty+1}:x));
-                                                                else setCart([...cart, {...i, qty:1}]);
-                                                            }} className="bg-yellow-400 p-3 rounded-2xl shadow-lg"><Icons.Plus/></button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
+                    Object.keys(menuData).map(cat => (
+                        <div key={cat} className="mb-10">
+                            <h2 className="text-2xl font-black border-l-8 border-yellow-400 pl-4 mb-6 uppercase italic">{cat}</h2>
+                            <div className="grid gap-4">
+                                {menuData[cat].map(i => (
+                                    <div key={i.id} className="p-4 bg-zinc-50 rounded-[2rem] border flex justify-between items-center">
+                                        <span className="font-black uppercase text-sm">{i.name}</span>
+                                        <span className="text-red-600 font-black italic">${i.price.toLocaleString()}</span>
                                     </div>
-                                ))
-                            }
-                        </main>
-                    </div>
-                )}
-            </div>
-        );
-    };
-
-    const AdminPanel = ({ menuData, orders, onExit }) => {
-        const save = (p, d) => window.dbRefs.set(window.dbRefs.ref(window.db, p), d);
-        return (
-            <div className="min-h-screen bg-zinc-950 p-5 text-white">
-                <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-black text-yellow-500 uppercase">CAIFU ADMIN</h2><button onClick={onExit} className="bg-red-600 px-4 py-1.5 rounded-full text-[10px] font-bold">SALIR</button></div>
-                <button onClick={()=>{const c=prompt("Categoría:"); if(c) save(`menu/${c}`, [{id:Date.now(), name:"Nuevo Plato", price:0}])}} className="w-full bg-green-600 py-3 rounded-xl font-black text-xs uppercase mb-10">+ NUEVA CATEGORÍA</button>
-                <div className="space-y-4">
-                    <h3 className="text-xs font-black uppercase text-zinc-500">Pedidos</h3>
-                    {orders.map(o => (
-                        <div key={o.fid} className="p-4 rounded-3xl bg-zinc-900 border border-zinc-800 flex justify-between">
-                            <div><p className="text-xs font-black uppercase text-yellow-500">{o.name}</p><p className="text-lg font-black">${o.total.toLocaleString()}</p></div>
-                            <button onClick={()=>window.dbRefs.remove(window.dbRefs.ref(window.db, `orders/${o.fid}`))} className="text-red-500"><Icons.Trash/></button>
+                                ))}
+                            </div>
                         </div>
-                    ))}
-                </div>
+                    ))
+                )}
             </div>
         );
     };
