@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CAIFU - App Oficial</title>
+    <title>CAIFU v360 - Cloud App</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -14,24 +14,22 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #000; color: white; margin: 0; }
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; }
+        .admin-body { background-color: #020617; color: white; }
         #app-loader { position: fixed; inset: 0; background: #7f1d1d; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; }
-        .animate-fade { animation: fade 0.4s ease-out forwards; }
-        @keyframes fade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
     <div id="app-loader">
-        <div style="font-size: 32px; font-weight: 800; font-style: italic;">CAIFU</div>
-        <div id="loader-msg" style="font-size: 10px; margin-top: 10px; opacity: 0.7; letter-spacing: 2px;">CONECTANDO...</div>
+        <div style="font-size: 32px; font-weight: 800; color: white; font-style: italic;">CAIFU</div>
+        <div style="font-size: 10px; color: white; margin-top: 10px; opacity: 0.7; letter-spacing: 2px;">SINCRONIZANDO...</div>
     </div>
-
     <div id="root"></div>
 
 <script type="text/babel">
     const { useState, useEffect } = React;
 
-    // CONFIGURACIÓN (Tus datos de image_9c1a67.png)
+    // CREDENCIALES REALES (de tu image_9c1a67.png)
     const firebaseConfig = {
         apiKey: "AIzaSyCoDJZtsafs3Nm8GlCz7XaOt_H_iRaGs5M",
         authDomain: "caifu-8d229.firebaseapp.com",
@@ -42,64 +40,67 @@
         appId: "1:612537164209:web:968f9a38f3697eb207865c"
     };
 
-    // Inicializar Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
     const App = () => {
-        const [isAdmin, setIsAdmin] = useState(window.location.search.includes('admin=true'));
+        const [isAdmin] = useState(window.location.search.includes('admin=true'));
         const [menu, setMenu] = useState(null);
         const [orders, setOrders] = useState([]);
+        const [loading, setLoading] = useState(true);
 
         useEffect(() => {
-            // Escuchar cambios en el menú
-            db.ref('menu').on('value', (snapshot) => {
-                setMenu(snapshot.exists() ? snapshot.val() : {});
-                document.getElementById('app-loader').style.display = 'none';
+            // Cargar Menú
+            db.ref('menu').on('value', (snap) => {
+                setMenu(snap.exists() ? snap.val() : {});
+                setLoading(false);
+                const loader = document.getElementById('app-loader');
+                if(loader) loader.style.display = 'none';
             });
 
-            // Escuchar cambios en los pedidos
-            db.ref('orders').on('value', (snapshot) => {
-                if(snapshot.exists()) {
-                    const data = snapshot.val();
+            // Cargar Pedidos
+            db.ref('orders').on('value', (snap) => {
+                if(snap.exists()) {
+                    const data = snap.val();
                     setOrders(Object.keys(data).map(k => ({...data[k], id: k})).reverse());
                 } else setOrders([]);
             });
         }, []);
 
-        const initSystem = () => {
-            db.ref('menu/GENERAL').set([{id: Date.now(), name: "Plato de Prueba", price: 15000}]);
+        const createTestMenu = () => {
+            db.ref('menu/PRINCIPAL').set([
+                { id: Date.now(), name: "Hamburguesa Clásica", price: 18000, desc: "Carne de res, queso y vegetales." }
+            ]);
         };
 
         const deleteOrder = (id) => db.ref(`orders/${id}`).remove();
 
-        // VISTA ADMINISTRADOR (FONDO OSCURO)
         if (isAdmin) {
             return (
-                <div className="min-h-screen bg-zinc-950 p-6 animate-fade text-white">
-                    <div className="flex justify-between items-center mb-10">
-                        <h1 className="text-yellow-500 font-black text-2xl italic uppercase">Panel Admin</h1>
-                        <button onClick={() => window.location.search = ''} className="bg-red-600 px-4 py-1 rounded-full text-[10px] font-bold">SALIR</button>
+                <div className="min-h-screen p-6 admin-body">
+                    <div className="flex justify-between items-center mb-10 border-b border-zinc-800 pb-4">
+                        <h1 className="text-yellow-500 font-black text-2xl italic uppercase">Admin Caifu</h1>
+                        <button onClick={() => window.location.search = ''} className="text-[10px] font-bold bg-zinc-800 px-4 py-1 rounded-full uppercase">Vista Cliente</button>
                     </div>
-                    
-                    <button onClick={initBase} className="w-full bg-green-600 py-4 rounded-3xl font-black mb-10 text-xs shadow-xl active:scale-95 transition">
-                        + CREAR MENÚ DE PRUEBA
-                    </button>
+
+                    <div className="bg-blue-600/20 border border-blue-500/50 p-6 rounded-3xl mb-10">
+                        <p className="text-xs font-bold mb-4 uppercase text-blue-400">Control de Emergencia</p>
+                        <button onClick={createTestMenu} className="w-full bg-blue-500 py-4 rounded-2xl font-black text-xs uppercase shadow-lg shadow-blue-900/40">
+                            + REPARAR MENÚ (Inyectar Datos)
+                        </button>
+                    </div>
 
                     <div className="space-y-4">
-                        <h2 className="text-zinc-500 font-black text-[10px] uppercase tracking-widest">Bandeja de Pedidos</h2>
-                        {orders.length === 0 ? <p className="text-zinc-800 italic py-10 text-center uppercase text-xs font-bold">Esperando órdenes...</p> : 
+                        <h2 className="text-zinc-500 font-black text-[10px] uppercase tracking-widest">Pedidos Recibidos</h2>
+                        {orders.length === 0 ? <p className="text-zinc-700 italic py-10 text-center uppercase text-[10px] font-bold">Esperando órdenes en la nube...</p> : 
                             orders.map(o => (
-                                <div key={o.id} className="p-5 bg-zinc-900 rounded-[2rem] border border-zinc-800 shadow-lg">
+                                <div key={o.id} className="p-5 bg-zinc-900 rounded-[2rem] border border-zinc-800">
                                     <div className="flex justify-between text-[10px] font-black uppercase text-yellow-500 mb-2">
                                         <span>{o.name || 'Cliente'}</span>
-                                        <span>{o.time}</span>
+                                        <button onClick={() => deleteOrder(o.id)} className="text-red-500">BORRAR</button>
                                     </div>
-                                    <p className="text-sm font-bold text-zinc-200 mb-3">{o.items}</p>
-                                    <div className="flex justify-between items-center pt-3 border-t border-zinc-800">
-                                        <span className="text-green-500 font-black text-lg">${o.total?.toLocaleString()}</span>
-                                        <button onClick={() => deleteOrder(o.id)} className="text-red-500 p-2">BORRAR</button>
-                                    </div>
+                                    <p className="text-sm font-bold text-zinc-200">{o.items}</p>
+                                    <p className="text-green-500 font-black text-lg mt-2">${o.total?.toLocaleString()}</p>
                                 </div>
                             ))
                         }
@@ -108,32 +109,31 @@
             );
         }
 
-        // VISTA CLIENTE (FONDO BLANCO)
         return (
-            <div className="min-h-screen bg-white text-zinc-900 p-6 animate-fade">
-                <header className="text-center py-10">
-                    <h1 className="text-6xl font-black italic tracking-tighter uppercase">CAIFU</h1>
+            <div className="min-h-screen bg-white p-6">
+                <header className="text-center py-10 border-b mb-10">
+                    <h1 className="text-6xl font-black italic tracking-tighter uppercase text-black">CAIFU</h1>
                 </header>
 
                 {(!menu || Object.keys(menu).length === 0) ? (
-                    <div className="text-center py-20 bg-zinc-50 rounded-[3rem] border-2 border-dashed border-zinc-100">
-                        <p className="text-zinc-400 font-black text-[10px] uppercase mb-6 tracking-widest">El menú está vacío</p>
-                        <button onClick={() => window.location.search = '?admin=true'} className="bg-black text-white px-10 py-4 rounded-full font-black text-[10px] uppercase shadow-xl active:scale-95 transition">
-                            CONFIGURAR APP
+                    <div className="text-center py-20 px-6 bg-slate-50 rounded-[3rem] border-4 border-dashed border-slate-100">
+                        <p className="text-slate-400 font-black text-xs uppercase mb-8 leading-relaxed">Bienvenido a Caifu.<br/>Aún no has configurado tu menú en la nube.</p>
+                        <button onClick={() => window.location.search = '?admin=true'} className="bg-black text-white px-10 py-5 rounded-full font-black text-xs uppercase shadow-2xl">
+                            ENTRAR COMO ADMINISTRADOR
                         </button>
                     </div>
                 ) : (
                     Object.keys(menu).map(cat => (
                         <div key={cat} className="mb-12">
-                            <h2 className="text-3xl font-black border-l-[10px] border-yellow-400 pl-4 mb-8 uppercase italic">{cat}</h2>
+                            <h2 className="text-4xl font-black border-l-[12px] border-yellow-400 pl-4 mb-8 uppercase italic">{cat}</h2>
                             <div className="grid gap-6">
                                 {menu[cat].map(i => (
-                                    <div key={i.id} className="p-4 bg-white rounded-[2.5rem] shadow-2xl border border-zinc-50 flex justify-between items-center">
-                                        <div className="flex flex-col">
-                                            <span className="font-black text-sm uppercase leading-tight">{i.name}</span>
-                                            <span className="text-red-600 font-black italic mt-1">${i.price.toLocaleString()}</span>
+                                    <div key={i.id} className="p-5 bg-white rounded-[2.5rem] shadow-xl border border-slate-100 flex justify-between items-center">
+                                        <div>
+                                            <p className="font-black text-sm uppercase text-slate-800">{i.name}</p>
+                                            <p className="text-red-600 font-black italic text-xl mt-1">${i.price.toLocaleString()}</p>
                                         </div>
-                                        <button className="bg-yellow-400 p-3 rounded-2xl shadow-lg shadow-yellow-100 font-bold">+</button>
+                                        <button className="bg-yellow-400 w-12 h-12 rounded-2xl shadow-lg shadow-yellow-100 flex items-center justify-center font-bold text-xl">+</button>
                                     </div>
                                 ))}
                             </div>
