@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CAIFU v370 - Cloud App</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #0f172a; margin: 0; }
+        .admin-view { background-color: #020617; color: white; }
+        #startup-loader { position: fixed; inset: 0; background: #7f1d1d; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.5s; }
+    </style>
+</head>
+<body>
+    <div id="startup-loader">
+        <div style="font-size: 40px; font-weight: 800; color: white; font-style: italic;">CAIFU</div>
+        <div id="loader-status" style="font-size: 10px; color: white; margin-top: 15px; opacity: 0.8; letter-spacing: 3px; font-weight: bold;">CONECTANDO A LA NUBE...</div>
+    </div>
+    <div id="root"></div>
+
+<script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // CREDENCIALES (Extraídas de tus imágenes)
+    const firebaseConfig = {
+        apiKey: "AIzaSyCoDJZtsafs3Nm8GlCz7XaOt_H_iRaGs5M",
+        authDomain: "caifu-8d229.firebaseapp.com",
+        databaseURL: "https://caifu-8d229-default-rtdb.firebaseio.com",
+        projectId: "caifu-8d229",
+        storageBucket: "caifu-8d229.firebasestorage.app",
+        messagingSenderId: "612537164209",
+        appId: "1:612537164209:web:968f9a38f3697eb207865c"
+    };
+
+    // Inicialización Segura
+    try {
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    } catch (e) { console.error("Error Firebase:", e); }
+    
+    const db = firebase.database();
+
+    const App = () => {
+        const [isAdmin] = useState(window.location.search.includes('admin=true'));
+        const [menu, setMenu] = useState(null);
+        const [orders, setOrders] = useState([]);
+        const [dbReady, setDbReady] = useState(false);
+
+        useEffect(() => {
+            // Monitor de conexión
+            const connectedRef = db.ref(".info/connected");
+            connectedRef.on("value", (snap) => {
+                if (snap.val() === true) {
+                    setDbReady(true);
+                    document.getElementById('loader-status').innerText = "SINCRONIZADO";
+                    setTimeout(() => {
+                        const l = document.getElementById('startup-loader');
+                        if(l) l.style.opacity = '0';
+                        setTimeout(() => { if(l) l.style.display = 'none' }, 500);
+                    }, 800);
+                } else {
+                    document.getElementById('loader-status').innerText = "BUSCANDO SERVIDOR...";
+                }
+            });
+
+            // Escuchar Menú
+            db.ref('menu').on('value', (snap) => setMenu(snap.val()));
+
+            // Escuchar Pedidos
+            db.ref('orders').on('value', (snap) => {
+                const data = snap.val();
+                if(data) setOrders(Object.keys(data).map(k => ({...data[k], id: k})).reverse());
+                else setOrders([]);
+            });
+        }, []);
+
+        // Función para inyectar datos si la DB está en null
+        const initializeSystem = () => {
+            db.ref('menu/CATEGORIA_PRUEBA').set([
+                { id: Date.now(), name: "Producto Inicial", price: 5000, desc: "Configura tu menú en el panel admin" }
+            ]);
+            db.ref('config').set({ pin: "1234", bg: [] });
+            alert("¡Sistema inicializado! Refresca la página.");
+        };
+
+        if (isAdmin) {
+            return (
+                <div className="min-h-screen p-6 admin-view animate-fade-in">
+                    <div className="flex justify-between items-center mb-10 border-b border-zinc-800 pb-4">
+                        <h1 className="text-yellow-500 font-black text-2xl italic uppercase">Admin v370</h1>
+                        <button onClick={() => window.location.search = ''} className="text-[10px] font-bold bg-zinc-800 px-4 py-2 rounded-full uppercase">Cerrar Sesión</button>
+                    </div>
+
+                    <div className="bg-orange-500/10 border border-orange-500/30 p-6 rounded-3xl mb-10">
+                        <p className="text-xs font-black mb-4 uppercase text-orange-400">Herramienta de Recuperación</p>
+                        <button onClick={initializeSystem} className="w-full bg-orange-600 py-4 rounded-2xl font-black text-xs uppercase shadow-lg active:scale-95 transition">
+                            INICIALIZAR SISTEMA (Arreglar Null)
+                        </button>
+                    </div>
+
+                    <div className="space-y-4">
+                        <h2 className="text-zinc-500 font-black text-[10px] uppercase tracking-widest">Pedidos en la Nube</h2>
+                        {orders.length === 0 ? <p className="text-zinc-800 italic py-10 text-center font-bold">Sin pedidos pendientes</p> : 
+                            orders.map(o => (
+                                <div key={o.id} className="p-5 bg-zinc-900 rounded-3xl border border-zinc-800">
+                                    <div className="flex justify-between text-[10px] font-black uppercase text-yellow-500 mb-2">
+                                        <span>{o.name || 'Anónimo'}</span>
+                                        <button onClick={() => db.ref(`orders/${o.id}`).remove()} className="text-red-500">BORRAR</button>
+                                    </div>
+                                    <p className="text-sm font-bold text-zinc-200">{o.items}</p>
+                                    <p className="text-green-500 font-black text-lg mt-2">${o.total?.toLocaleString()}</p>
+                                </div>
+                            ))
+                        }
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <div className="min-h-screen bg-slate-50 p-6">
+                <header className="text-center py-10">
+                    <h1 className="text-6xl font-black italic tracking-tighter uppercase text-slate-900">CAIFU</h1>
+                </header>
+
+                {(!menu || Object.keys(menu).length === 0) ? (
+                    <div className="text-center py-20 px-6 bg-white rounded-[3rem] shadow-xl border border-slate-200">
+                        <p className="text-slate-400 font-black text-xs uppercase mb-8 leading-relaxed">Conexión establecida.<br/>Faltan datos en el menú.</p>
+                        <button onClick={() => window.location.search = '?admin=true'} className="bg-slate-900 text-white px-10 py-5 rounded-full font-black text-xs uppercase tracking-widest active:scale-95 transition">
+                            ENTRAR COMO ADMIN
+                        </button>
+                    </div>
+                ) : (
+                    Object.keys(menu).map(cat => (
+                        <div key={cat} className="mb-12 animate-fade-in">
+                            <h2 className="text-3xl font-black border-l-[10px] border-yellow-400 pl-4 mb-8 uppercase italic">{cat}</h2>
+                            <div className="grid gap-6">
+                                {menu[cat].map(i => (
+                                    <div key={i.id} className="p-5 bg-white rounded-[2.5rem] shadow-md border border-slate-100 flex justify-between items-center">
+                                        <div>
+                                            <p className="font-black text-sm uppercase text-slate-800">{i.name}</p>
+                                            <p className="text-red-600 font-black italic text-xl mt-1">${i.price.toLocaleString()}</p>
+                                        </div>
+                                        <button className="bg-yellow-400 w-12 h-12 rounded-2xl shadow-lg flex items-center justify-center font-bold">+</button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+        );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
