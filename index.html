@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CAIFU OMNI-PRO v530</title>
+    <title>CAIFU VIP - v540 GPS FIX</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -15,15 +15,11 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         body { font-family: 'Inter', sans-serif; margin: 0; overflow-x: hidden; -webkit-tap-highlight-color: transparent; scroll-behavior: smooth; }
-        
         .client-body { background: linear-gradient(135deg, #000000 0%, #450a0a 100%); color: white; min-height: 100vh; }
         .gold-text { color: #d4af37; }
-        .gold-border { border-color: #d4af37; }
         .gold-bg { background-color: #d4af37; color: black; }
-        
         .admin-view { background-color: #020617; color: white; }
         #master-loader { position: fixed; inset: 0; background: #7f1d1d; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; }
-        
         .carousel-slide { position: absolute; inset: 0; background-size: cover; background-position: center; transition: opacity 1.5s ease; opacity: 0; z-index: 1; }
         .carousel-slide.active { opacity: 0.6; z-index: 2; }
         .bg-overlay { position: absolute; inset: 0; background: linear-gradient(to top, black, transparent, rgba(0,0,0,0.8)); z-index: 5; }
@@ -36,7 +32,7 @@
 <body>
     <div id="master-loader">
         <div style="font-size: 32px; font-weight: 800; color: white; font-style: italic;">CAIFU VIP</div>
-        <div style="font-size: 10px; color: white; margin-top: 10px; letter-spacing: 2px;">RECONECTANDO SISTEMAS...</div>
+        <div style="font-size: 10px; color: white; margin-top: 10px; letter-spacing: 2px;">CALIBRANDO GPS...</div>
     </div>
     <div id="root"></div>
 
@@ -56,28 +52,13 @@
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // UTILIDADES
+    // FÓRMULA DE DISTANCIA
     const getDist = (lat1, lon1, lat2, lon2) => {
         const R = 6371;
         const dLat = (lat2-lat1)*Math.PI/180;
         const dLon = (lon2-lon1)*Math.PI/180;
         const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    };
-
-    const compress = (file, size = 400) => {
-        return new Promise(res => {
-            const r = new FileReader(); r.readAsDataURL(file);
-            r.onload = e => {
-                const img = new Image(); img.src = e.target.result;
-                img.onload = () => {
-                    const c = document.createElement('canvas');
-                    const s = size / img.width; c.width = size; c.height = img.height * s;
-                    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-                    res(c.toDataURL('image/jpeg', 0.25));
-                }
-            }
-        });
     };
 
     const Icons = {
@@ -99,10 +80,8 @@
         const [isCartOpen, setIsCartOpen] = useState(false);
         const [client, setClient] = useState({ name: "", address: "", notes: "", payment: "Efectivo", type: "Domicilio", table: "" });
         const [delivery, setDelivery] = useState(null);
-        const [slide, setSlide] = useState(0);
         const [loadingLoc, setLoadingLoc] = useState(false);
-        
-        const audioRef = useRef(new Audio());
+        const [slide, setSlide] = useState(0);
 
         useEffect(() => {
             db.ref('config').on('value', s => s.exists() && setConfig(s.val()));
@@ -111,7 +90,6 @@
                 if(s.exists()){
                     const d = s.val();
                     setOrders(Object.keys(d).map(k => ({...d[k], fid: k})).reverse());
-                    if(isAdmin && config.sound) { audioRef.current.src = config.sound; audioRef.current.play().catch(()=>{}); }
                 } else setOrders([]);
             });
             setTimeout(() => { if(document.getElementById('master-loader')) document.getElementById('master-loader').style.display='none' }, 1500);
@@ -123,6 +101,28 @@
                 return () => clearInterval(timer);
             }
         }, [config.bg, view]);
+
+        const handleGPS = () => {
+            if (!config.loc?.lat) return alert("El restaurante no ha fijado su ubicación todavía.");
+            setLoadingLoc(true);
+            
+            const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
+
+            navigator.geolocation.getCurrentPosition(
+                pos => {
+                    const d = getDist(config.loc.lat, config.loc.lng, pos.coords.latitude, pos.coords.longitude);
+                    const match = (config.zones || []).sort((a,b)=>a.km-b.km).find(z => d <= z.km);
+                    setDelivery(match ? match.price : "Fuera de Cobertura");
+                    setLoadingLoc(false);
+                },
+                err => {
+                    console.error(err);
+                    alert("Error GPS: Asegúrate de permitir la ubicación en tu navegador.");
+                    setLoadingLoc(false);
+                },
+                options
+            );
+        };
 
         const scrollToCat = (id) => {
             const el = document.getElementById(id);
@@ -157,7 +157,7 @@
 
                         <div className="category-bar flex overflow-x-auto no-scrollbar p-3 gap-3">
                             {Object.keys(menuData).map(cat => (
-                                <button key={cat} onClick={()=>scrollToCat(cat)} className="px-5 py-2 rounded-full bg-white/5 border border-white/10 text-[10px] font-black uppercase whitespace-nowrap gold-text active:gold-bg active:text-black transition-all">
+                                <button key={cat} onClick={()=>scrollToCat(cat)} className="px-5 py-2 rounded-full bg-white/5 border border-white/10 text-[10px] font-black uppercase whitespace-nowrap gold-text active:gold-bg transition-all">
                                     {cat}
                                 </button>
                             ))}
@@ -166,7 +166,7 @@
                         <main className="p-6 space-y-16 pb-24">
                             {Object.keys(menuData).map(cat => (
                                 <div key={cat} id={cat}>
-                                    <h2 className="text-3xl font-black border-l-[10px] gold-border pl-4 mb-8 uppercase italic gold-text tracking-widest">{cat}</h2>
+                                    <h2 className="text-3xl font-black border-l-[10px] border-[#d4af37] pl-4 mb-8 uppercase italic gold-text tracking-widest">{cat}</h2>
                                     <div className="grid gap-6">
                                         {menuData[cat].map(i => (
                                             <div key={i.id} className="item-card p-3 rounded-[2.5rem] flex gap-4 items-center shadow-xl">
@@ -174,7 +174,7 @@
                                                     {i.img && <img src={i.img} className="w-full h-full object-cover" />}
                                                 </div>
                                                 <div className="flex-1 pr-2">
-                                                    <h3 className="font-black text-sm uppercase text-white">{i.name}</h3>
+                                                    <h3 className="font-black text-sm uppercase text-white leading-tight">{i.name}</h3>
                                                     <p className="text-[10px] text-zinc-400 line-clamp-2 uppercase">{i.desc}</p>
                                                     <div className="flex justify-between items-center mt-3">
                                                         <span className="gold-text font-black text-xl italic">${i.price.toLocaleString()}</span>
@@ -202,24 +202,22 @@
                                 <button onClick={()=>setIsCartOpen(false)} className="bg-white/10 p-2 rounded-full text-white">✕</button>
                             </div>
                             <div className="space-y-3 mb-8 bg-black/40 p-4 rounded-[2rem] border border-white/5">
-                                {cart.length === 0 ? <p className="text-center py-4 font-bold text-zinc-600 uppercase">Vacío</p> : 
-                                    cart.map(i => (
-                                        <div key={i.id} className="flex justify-between items-center border-b border-white/5 last:border-0 pb-3 mt-2">
-                                            <div className="flex flex-col"><span className="font-black text-xs uppercase italic text-white">{i.name}</span><span className="text-[10px] gold-text font-black">${(i.price*i.qty).toLocaleString()}</span></div>
-                                            <div className="flex items-center gap-3 bg-white/5 p-1 rounded-2xl border border-white/10">
-                                                <button onClick={()=>setCart(cart.map(x=>x.id===i.id?{...x,qty:x.qty-1}:x).filter(x=>x.qty>0))} className="p-1.5"><Icons.Minus/></button>
-                                                <span className="font-black text-sm w-4 text-center">{i.qty}</span>
-                                                <button onClick={()=>setCart(cart.map(x=>x.id===i.id?{...x,qty:x.qty+1}:x))} className="p-1.5"><Icons.Plus/></button>
-                                            </div>
+                                {cart.map(i => (
+                                    <div key={i.id} className="flex justify-between items-center border-b border-white/5 last:border-0 pb-3 mt-2">
+                                        <div className="flex flex-col"><span className="font-black text-xs uppercase italic text-white">{i.name}</span><span className="text-[10px] gold-text font-black">${(i.price*i.qty).toLocaleString()}</span></div>
+                                        <div className="flex items-center gap-3 bg-white/5 p-1 rounded-2xl border border-white/10">
+                                            <button onClick={()=>setCart(cart.map(x=>x.id===i.id?{...x,qty:x.qty-1}:x).filter(x=>x.qty>0))} className="p-1.5"><Icons.Minus/></button>
+                                            <span className="font-black text-sm w-4 text-center">{i.qty}</span>
+                                            <button onClick={()=>setCart(cart.map(x=>x.id===i.id?{...x,qty:x.qty+1}:x))} className="p-1.5"><Icons.Plus/></button>
                                         </div>
-                                    ))
-                                }
+                                    </div>
+                                ))}
                             </div>
                             <div className="space-y-6 mb-8">
                                 <input placeholder="Nombre Completo" className="w-full border border-white/10 p-5 rounded-2xl font-black bg-white/5 outline-none focus:border-[#d4af37] text-white" onChange={e=>setClient({...client, name:e.target.value})} />
                                 <div className="flex gap-2">
                                     {['Domicilio', 'Mesa'].map(t => (
-                                        <button key={t} onClick={()=>setClient({...client, type:t})} className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase transition-all ${client.type === t ? 'gold-bg' : 'bg-white/5 text-zinc-500'}`}>{t}</button>
+                                        <button key={t} onClick={()=>setClient({...client, type:t, delivery: t==='Mesa'?0:delivery})} className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase transition-all ${client.type === t ? 'gold-bg' : 'bg-white/5 text-zinc-500'}`}>{t}</button>
                                     ))}
                                 </div>
                                 {client.type === 'Mesa' ? (
@@ -227,18 +225,10 @@
                                 ) : (
                                     <div className="space-y-4">
                                         <input placeholder="Dirección Exacta" className="w-full border border-white/10 p-5 rounded-2xl font-black bg-white/5 outline-none text-white" onChange={e=>setClient({...client, address:e.target.value})} />
-                                        <button onClick={()=>{
-                                            setLoadingLoc(true);
-                                            navigator.geolocation.getCurrentPosition(pos => {
-                                                const d = getDist(config.loc.lat, config.loc.lng, pos.coords.latitude, pos.coords.longitude);
-                                                const match = (config.zones || []).sort((a,b)=>a.km-b.km).find(z => d <= z.km);
-                                                setDelivery(match ? match.price : "Fuera de Cobertura");
-                                                setLoadingLoc(false);
-                                            }, ()=> { alert("Activa el GPS"); setLoadingLoc(false); }, {enableHighAccuracy:true});
-                                        }} className="w-full gold-bg py-4 rounded-2xl font-black uppercase text-[10px]">
-                                            {loadingLoc ? "Calculando..." : "📍 CALCULAR ENVÍO (GPS)"}
+                                        <button onClick={handleGPS} disabled={loadingLoc} className="w-full gold-bg py-4 rounded-2xl font-black uppercase text-[10px] shadow-lg active:scale-95 transition">
+                                            {loadingLoc ? "CALIBRANDO GPS..." : "📍 CALCULAR ENVÍO (GPS)"}
                                         </button>
-                                        {delivery !== null && <p className="text-center font-black gold-text uppercase text-[10px]">{typeof delivery === 'number' ? `Costo Envío: $${delivery.toLocaleString()}` : delivery}</p>}
+                                        {delivery !== null && <p className="text-center font-black gold-text uppercase text-[10px]">{typeof delivery === 'number' ? `Tarifa Envío: $${delivery.toLocaleString()}` : delivery}</p>}
                                     </div>
                                 )}
                                 <div className="space-y-2">
@@ -249,9 +239,9 @@
                                         ))}
                                     </div>
                                 </div>
-                                <textarea placeholder="Notas del pedido (Ej: Sin cebolla, portería...)" className="w-full border border-white/10 p-5 rounded-2xl font-bold bg-white/5 text-xs min-h-[80px] text-white outline-none" onChange={e=>setClient({...client, notes:e.target.value})} />
-                                <div className="flex justify-between text-4xl font-black pt-8 border-t-2 border-dashed border-white/10 italic uppercase gold-text">
-                                    <span className="text-white font-black tracking-tighter">TOTAL</span><span>${(cart.reduce((a,b)=>a+(b.price*b.qty),0) + (client.type==='Domicilio'?(Number(delivery)||0):0)).toLocaleString()}</span>
+                                <textarea placeholder="¿Notas del pedido? (Ej: Sin cebolla, portería...)" className="w-full border border-white/10 p-5 rounded-2xl font-bold bg-white/5 text-xs min-h-[80px] text-white outline-none" onChange={e=>setClient({...client, notes:e.target.value})} />
+                                <div className="flex justify-between text-4xl font-black pt-8 border-t-2 border-dashed border-white/10 italic gold-text">
+                                    <span className="text-white tracking-tighter">TOTAL</span><span>${(cart.reduce((a,b)=>a+(b.price*b.qty),0) + (client.type==='Domicilio'?(Number(delivery)||0):0)).toLocaleString()}</span>
                                 </div>
                                 <button onClick={()=>{
                                     db.ref('orders').push({ ...client, items: cart.map(i=>`${i.qty}x ${i.name}`).join(', '), total: (cart.reduce((a,b)=>a+(b.price*b.qty),0) + (client.type==='Domicilio'?(Number(delivery)||0):0)), time: new Date().toLocaleTimeString() });
@@ -274,16 +264,20 @@
         const up = async (e, type) => {
             const f = e.target.files[0]; if(!f) return;
             setLoad(true);
-            try {
-                if(type === 'sound') {
-                    const r = new FileReader(); r.readAsDataURL(f);
-                    r.onload = ev => save('config/sound', ev.target.result);
-                } else {
-                    const b64 = await compress(f, type==='bg'?600:400);
-                    if(type==='bg') save('config/bg', [...(config.bg || []), b64]);
-                    if(type==='item') setEditing({...editing, img: b64});
+            const b64 = await new Promise(res => {
+                const r = new FileReader(); r.readAsDataURL(f);
+                r.onload = ev => {
+                    const img = new Image(); img.src = ev.target.result;
+                    img.onload = () => {
+                        const c = document.createElement('canvas');
+                        const s = (type==='bg'?600:400) / img.width; c.width = (type==='bg'?600:400); c.height = img.height * s;
+                        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+                        res(c.toDataURL('image/jpeg', 0.25));
+                    }
                 }
-            } catch(err) { alert("Error"); }
+            });
+            if(type==='bg') save('config/bg', [...(config.bg || []), b64]);
+            if(type==='item') setEditing({...editing, img: b64});
             setLoad(false);
             e.target.value = null;
         };
@@ -291,10 +285,9 @@
         return (
             <div className="min-h-screen admin-view p-5 pb-24 overflow-y-auto animate-fade-in text-white">
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-black text-yellow-500 uppercase italic">ADMIN CAIFU</h2>
+                    <h2 className="text-xl font-black text-yellow-500 uppercase italic tracking-tighter">ADMIN CAIFU</h2>
                     <button onClick={onExit} className="bg-red-600 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest">Salir</button>
                 </div>
-                
                 <div className="flex gap-2 mb-6 bg-zinc-900 p-1.5 rounded-2xl overflow-x-auto no-scrollbar">
                     {['inbox', 'menu', 'carrusel', 'gps', 'ajustes'].map(t => (
                         <button key={t} onClick={()=>setTab(t)} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase whitespace-nowrap ${tab===t?'bg-yellow-500 text-black shadow-lg':'text-zinc-500'}`}>{t}</button>
@@ -303,7 +296,7 @@
 
                 {tab === 'inbox' && (
                     <div className="space-y-4">
-                        <div className="flex justify-between text-[10px] font-black uppercase text-zinc-600 tracking-widest"><span>Bandeja</span><button onClick={()=>db.ref('orders').remove()}>Borrar todo</button></div>
+                        <button onClick={()=>db.ref('orders').remove()} className="w-full bg-red-900/40 border border-red-500 text-red-500 py-2 rounded-xl text-[9px] font-black uppercase">Vaciar Bandeja</button>
                         {orders.map(o => (
                             <div key={o.fid} className="p-4 rounded-3xl border border-zinc-800 bg-zinc-900">
                                 <div className="flex justify-between text-[10px] mb-2 font-black italic uppercase text-yellow-500"><span>{o.name} ({o.type})</span><span>{o.time}</span></div>
@@ -324,12 +317,10 @@
                             db.ref('menu/GENERAL').remove();
                             alert("Limpieza completada.");
                         }} className="w-full bg-red-900/40 border border-red-500 text-red-500 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest">⚠️ Eliminar Datos Prueba</button>
-                        
                         <button onClick={()=>{
                             const c = prompt("Nombre de la categoría:");
                             if(c) db.ref(`menu/${c.toUpperCase()}`).set([{ id: Date.now(), name: "PRIMER PLATO", price: 0, desc: "EDITA ESTO" }]);
                         }} className="w-full bg-green-600 py-3 rounded-xl font-black text-xs uppercase shadow-lg shadow-green-900/40 tracking-widest">+ NUEVA CATEGORÍA</button>
-                        
                         {Object.keys(menuData).map(cat => (
                             <div key={cat} className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800">
                                 <div className="flex justify-between items-center mb-4 border-b border-zinc-800 pb-2"><span className="font-black text-yellow-500 text-[11px] uppercase italic">{cat}</span><button onClick={()=>db.ref(`menu/${cat}`).remove()}><Icons.Trash/></button></div>
@@ -348,7 +339,7 @@
                         <label htmlFor="bg-in" className="w-full bg-blue-600 py-5 rounded-3xl flex justify-center items-center font-black text-sm cursor-pointer uppercase shadow-lg shadow-blue-900/20 tracking-widest"><Icons.Camera/>&nbsp;SUBIR FONDO</label>
                         <div className="grid grid-cols-2 gap-4">
                             {config.bg && config.bg.map((img, i) => (
-                                <div key={i} className="relative aspect-9-16 rounded-2xl overflow-hidden border-2 border-zinc-800"><img src={img} className="w-full h-full object-cover" /><button onClick={()=>{const n=[...config.bg]; n.splice(i,1); save('config/bg', n)}} className="absolute top-2 right-2 bg-red-600 p-2 rounded-full shadow-lg"><Icons.Trash/></button></div>
+                                <div key={i} className="relative aspect-9-16 rounded-2xl overflow-hidden border-2 border-zinc-800 shadow-xl"><img src={img} className="w-full h-full object-cover" /><button onClick={()=>{const n=[...config.bg]; n.splice(i,1); save('config/bg', n)}} className="absolute top-2 right-2 bg-red-600 p-2 rounded-full shadow-lg"><Icons.Trash/></button></div>
                             ))}
                         </div>
                     </div>
@@ -356,12 +347,21 @@
 
                 {tab === 'gps' && (
                     <div className="space-y-4">
-                        <button onClick={()=>navigator.geolocation.getCurrentPosition(p=>save('config/loc', {lat:p.coords.latitude, lng:p.coords.longitude}), null, {enableHighAccuracy:true})} className="w-full bg-blue-600 py-4 rounded-2xl font-black text-xs shadow-lg uppercase tracking-widest">📍 MARCAR NEGOCIO AQUÍ</button>
+                        <button onClick={()=>{
+                            navigator.geolocation.getCurrentPosition(
+                                p => {
+                                    save('config/loc', {lat: p.coords.latitude, lng: p.coords.longitude});
+                                    alert("¡Ubicación del Negocio Guardada!");
+                                },
+                                e => alert("Error: " + e.message),
+                                { enableHighAccuracy: true, timeout: 10000 }
+                            );
+                        }} className="w-full bg-blue-600 py-4 rounded-2xl font-black text-xs shadow-lg uppercase tracking-widest">📍 FIJAR NEGOCIO AQUÍ</button>
                         <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800">
                             <div className="flex justify-between items-center mb-4 uppercase text-[10px] font-black italic text-zinc-500"><span>Tarifas</span><button onClick={()=>save('config/zones', [...(config.zones || []), {id:Date.now(), label:"Zona", km:3, price:3000}])} className="bg-green-600 w-8 h-8 rounded-full shadow-lg text-white font-bold">+</button></div>
                             {(config.zones || []).map((z, i) => (
                                 <div key={z.id} className="bg-zinc-800 p-4 rounded-2xl mb-3 border border-zinc-700">
-                                    <input value={z.label} onChange={e=>{const n=[...config.zones]; n[i].label=e.target.value; save('config/zones', n)}} className="bg-transparent font-black uppercase text-xs w-full mb-3 outline-none border-b border-zinc-700" />
+                                    <input value={z.label} onChange={e=>{const n=[...config.zones]; n[i].label=e.target.value; save('config/zones', n)}} className="bg-transparent font-black uppercase text-xs w-full mb-3 outline-none border-b border-zinc-700 pb-1" />
                                     <div className="grid grid-cols-2 gap-4 text-[8px] uppercase font-bold text-zinc-500">
                                         <div>Km Max <input type="number" value={z.km} onChange={e=>{const n=[...config.zones]; n[i].km=parseFloat(e.target.value); save('config/zones', n)}} className="w-full bg-zinc-700 p-2 rounded-xl text-xs text-white" /></div>
                                         <div>Precio <input type="number" value={z.price} onChange={e=>{const n=[...config.zones]; n[i].price=parseInt(e.target.value); save('config/zones', n)}} className="w-full bg-zinc-700 p-2 rounded-xl text-xs text-white" /></div>
@@ -375,13 +375,13 @@
 
                 {tab === 'ajustes' && (
                     <div className="space-y-4">
-                        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800">
-                            <label className="text-[10px] font-black text-zinc-500 uppercase block mb-2 tracking-widest tracking-widest">PIN de Acceso</label>
-                            <input value={config.pin} onChange={e=>save('config/pin', e.target.value)} className="w-full bg-zinc-800 p-4 rounded-2xl font-black tracking-[0.4em] outline-none border border-zinc-700 text-white" />
-                        </div>
                         <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 shadow-xl">
                             <label className="text-[10px] font-black text-zinc-500 uppercase block mb-3 italic tracking-widest">Tono Alerta (MP3)</label>
-                            <input type="file" accept="audio/*" onChange={e=>up(e, 'sound')} className="text-[10px] mb-3 bg-zinc-800 p-3 rounded-2xl w-full border border-zinc-700" />
+                            <input type="file" accept="audio/*" onChange={e=>{
+                                const f = e.target.files[0];
+                                const r = new FileReader(); r.readAsDataURL(f);
+                                r.onload = ev => save('config/sound', ev.target.result);
+                            }} className="text-[10px] mb-3 bg-zinc-800 p-3 rounded-2xl w-full border border-zinc-700" />
                             {config.sound && <audio src={config.sound} controls className="w-full h-8 mt-2 opacity-30" />}
                         </div>
                     </div>
@@ -390,7 +390,6 @@
                 {editing && (
                     <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-6 z-[300] animate-fade">
                         <div className="bg-white text-zinc-900 p-6 rounded-[3rem] w-full max-w-sm space-y-4 shadow-2xl overflow-y-auto max-h-[90vh] no-scrollbar">
-                            <h3 className="font-black uppercase text-sm italic text-center">Datos del Plato</h3>
                             <div className="w-full aspect-square bg-zinc-100 rounded-[2rem] overflow-hidden relative border-2 border-dashed flex items-center justify-center">
                                 {editing.img ? <img src={editing.img} className="w-full h-full object-cover" /> : <Icons.Camera/>}
                                 <input type="file" onChange={e=>up(e, 'item')} className="absolute inset-0 opacity-0" />
@@ -405,7 +404,7 @@
                                     if(editing.id) m[editing.cat] = m[editing.cat].map(i => i.id === editing.id ? editing : i);
                                     else m[editing.cat].push({...editing, id: Date.now()});
                                     save('menu', m); setEditing(null);
-                                }} className="flex-1 bg-yellow-400 py-4 rounded-3xl font-black uppercase text-[10px] shadow-lg shadow-yellow-100 active:scale-95 transition">Guardar</button>
+                                }} className="flex-1 bg-yellow-400 py-4 rounded-3xl font-black uppercase text-[10px] shadow-lg active:scale-95 transition">Guardar</button>
                             </div>
                         </div>
                     </div>
