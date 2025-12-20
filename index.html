@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CAIFU MASTER v750</title>
+    <title>CAIFU MASTER v760</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#7f1d1d">
@@ -24,11 +24,9 @@
         .client-body { background: linear-gradient(135deg, #000000 0%, #450a0a 100%); min-height: 100vh; }
         .gold-text { color: #d4af37; }
         .gold-bg { background-color: #d4af37; color: black; }
-        
         #master-loader { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.8s ease; }
         .splash-logo { width: 140px; animation: pulseLogo 2s infinite alternate; }
         @keyframes pulseLogo { from { transform: scale(0.95); opacity: 0.8; } to { transform: scale(1.05); opacity: 1; } }
-
         .carousel-slide { position: absolute; inset: 0; background-size: cover; background-position: center; transition: opacity 1.5s ease; opacity: 0; z-index: 1; }
         .carousel-slide.active { opacity: 0.6; z-index: 2; }
         .item-card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(212, 175, 55, 0.2); backdrop-filter: blur(10px); border-radius: 2rem; }
@@ -40,7 +38,7 @@
 <body>
     <div id="master-loader">
         <img src="https://raw.githubusercontent.com/andrescaifucardenas-hue/CAIFU/main/logo.png.png" class="splash-logo">
-        <div style="margin-top: 20px; font-weight: 800; color: #d4af37; letter-spacing: 5px; font-size: 10px; border-top: 1px solid #d4af37; padding-top: 10px;">EXPERIENCIA VIP v750</div>
+        <div style="margin-top: 20px; font-weight: 800; color: #d4af37; letter-spacing: 5px; font-size: 10px; border-top: 1px solid #d4af37; padding-top: 10px;">CAIFU EXPERIENCIA VIP</div>
     </div>
     <div id="root"></div>
 
@@ -121,22 +119,25 @@
                 const match = (config.zones || []).sort((a,b)=>a.km-b.km).find(z => d <= z.km);
                 setDelivery(match ? match.price : "Fuera de Cobertura");
                 setLoadingLoc(false);
-            }, () => { alert("Por favor activa tu GPS"); setLoadingLoc(false); }, {enableHighAccuracy:true});
+            }, () => { alert("Activa el GPS"); setLoadingLoc(false); }, {enableHighAccuracy:true});
         };
 
         const handleSend = () => {
             const tableField = client.type === 'Mesa' ? document.getElementById('mesaInputFinal').value : "Domicilio";
-            const total = cart.reduce((a,b)=>a+(b.price*b.qty),0) + (client.type === 'Domicilio' ? (Number(delivery) || 0) : 0);
+            const deliveryCosto = (client.type === 'Domicilio' && typeof delivery === 'number') ? delivery : 0;
+            const total = cart.reduce((a,b)=>a+(b.price*b.qty),0) + deliveryCosto;
             const itemsList = cart.map(i => `${i.qty}x ${i.name}`).join(', ');
             
-            const orderObj = { ...client, table: tableField, items: itemsList, total, status: 'pending', time: new Date().toLocaleTimeString() };
+            const orderObj = { ...client, table: tableField, items: itemsList, total: total, status: 'pending', time: new Date().toLocaleTimeString() };
+            
             db.ref('orders').push(orderObj);
 
-            const msg = `*NUEVO PEDIDO CAIFU*%0A------------------%0A*Cliente:* ${client.name}%0A*Tipo:* ${client.type} (${tableField})%0A*Pedido:* ${itemsList}%0A*Pago:* ${client.payment}%0A*Notas:* ${client.notes || 'Sin notas'}%0A*TOTAL:* $${total.toLocaleString()}`;
+            // WhatsApp
+            const msg = `*NUEVO PEDIDO CAIFU*%0A------------------%0A*Cliente:* ${client.name}%0A*Tipo:* ${client.type} (${tableField})%0A*Pedido:* ${itemsList}%0A*Pago:* ${client.payment}%0A*Notas:* ${client.notes || '---'}%0A*TOTAL:* $${total.toLocaleString()}`;
             window.open(`https://wa.me/${config.ws}?text=${msg}`, '_blank');
 
-            setCart([]); setIsCartOpen(false); setClient({ name: "", address: "", notes: "", payment: "Efectivo", type: "Domicilio", table:"" }); setDelivery(null);
-            alert("¡Pedido enviado! Revisa tu WhatsApp para confirmar.");
+            setCart([]); setIsCartOpen(false); setClient({ name: "", address: "", notes: "", payment: "Efectivo", type: "Domicilio", table: "" }); setDelivery(null);
+            alert("¡Pedido enviado! Siiiuuu 🚀");
         };
 
         if(isAdmin) return <AdminPanel config={config} menuData={menuData} orders={orders} onExit={()=>setIsAdmin(false)} audioRef={audioRef} />;
@@ -161,17 +162,17 @@
                             ))}
                         </div>
                         <img src="https://raw.githubusercontent.com/andrescaifucardenas-hue/CAIFU/main/logo.png.png" className="z-10 w-32 mx-auto mt-10" />
-                        <h1 className="z-10 text-6xl font-black italic gold-text text-center tracking-tighter">CAIFU</h1>
+                        <h1 className="z-10 text-6xl font-black italic gold-text text-center tracking-tighter uppercase">Caifu</h1>
                         <div className="z-10 text-center">
-                            {!isOpenNow && <p className="bg-red-600 text-white py-2 px-4 rounded-full text-[10px] font-black uppercase mb-4 animate-pulse">Cerrado ahora</p>}
+                            {!isOpenNow && <p className="bg-red-600 text-white py-2 px-4 rounded-full text-[10px] font-black uppercase mb-4 animate-pulse">Cerrado por hoy</p>}
                             <button onClick={()=>setView('menu')} className="w-full gold-bg py-6 rounded-full font-black text-xl uppercase shadow-2xl active:scale-95 transition">Ver Menú</button>
                         </div>
                     </div>
                 ) : (
                     <div className="animate-fade-in">
                         <header className="sticky top-0 bg-black/80 backdrop-blur-xl p-5 border-b border-white/10 flex justify-between items-center z-50">
-                            <button onClick={()=>setView('home')} className="p-2 bg-white/10 rounded-full">🏠</button>
-                            <span className="font-black italic gold-text uppercase text-sm tracking-widest">Menú VIP</span>
+                            <button onClick={()=>setView('home')} className="p-2 bg-white/10 rounded-full text-white">🏠</button>
+                            <span className="font-black italic gold-text uppercase text-sm">Menú VIP</span>
                             <button onClick={()=>setIsCartOpen(true)} className="relative p-2 gold-bg rounded-full shadow-lg">🛒 {cart.length > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-black">{cart.reduce((a,b)=>a+b.qty,0)}</span>}</button>
                         </header>
                         <div className="category-bar flex overflow-x-auto no-scrollbar p-3 gap-3">
@@ -212,10 +213,7 @@
                 {isCartOpen && (
                     <div className="fixed inset-0 bg-black/95 z-[100] flex items-end animate-fade-in text-white">
                         <div className="bg-zinc-900 w-full rounded-t-[3.5rem] p-10 max-h-[96vh] overflow-y-auto no-scrollbar shadow-2xl border-t border-white/10">
-                            <div className="flex justify-between items-center mb-8">
-                                <h2 className="text-4xl font-black italic gold-text">MI ORDEN</h2>
-                                <button onClick={()=>setIsCartOpen(false)} className="text-white text-2xl">✕</button>
-                            </div>
+                            <div className="flex justify-between items-center mb-8"><h2 className="text-4xl font-black italic gold-text uppercase">Carrito</h2><button onClick={()=>setIsCartOpen(false)} className="text-white text-2xl">✕</button></div>
                             <div className="space-y-6">
                                 {isOpenNow ? (
                                     <>
@@ -239,9 +237,9 @@
                                             <input id="mesaInputFinal" placeholder="Número de Mesa" type="number" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black" />
                                         ) : (
                                             <div className="space-y-4">
-                                                <input placeholder="Dirección exacta" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black" value={client.address} onChange={e=>setClient({...client, address:e.target.value})} />
+                                                <input placeholder="Dirección de entrega" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black" value={client.address} onChange={e=>setClient({...client, address:e.target.value})} />
                                                 <button onClick={calcGPS} className="w-full gold-bg py-4 rounded-2xl font-black uppercase text-[10px] shadow-lg">📍 CALCULAR ENVÍO (GPS)</button>
-                                                {delivery !== null && <p className="text-center font-black gold-text text-[10px] uppercase">{typeof delivery === 'number' ? `Tarifa envío: $${delivery.toLocaleString()}` : delivery}</p>}
+                                                {delivery !== null && <p className="text-center font-black gold-text text-[10px] uppercase tracking-widest">{typeof delivery === 'number' ? `Tarifa envío: $${delivery.toLocaleString()}` : delivery}</p>}
                                             </div>
                                         )}
 
@@ -254,8 +252,8 @@
                                         <textarea placeholder="Notas extra (Ej: Sin salsas)" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white h-20 outline-none" value={client.notes} onChange={e=>setClient({...client, notes:e.target.value})} />
                                         
                                         <div className="flex justify-between items-center text-4xl font-black gold-text pt-6 border-t border-dashed border-white/10 italic">
-                                            <span className="text-white text-lg not-italic font-bold uppercase">Total Orden</span>
-                                            <span>${(cart.reduce((a,b)=>a+(b.price*b.qty),0) + (client.type === 'Domicilio' ? (Number(delivery) || 0) : 0)).toLocaleString()}</span>
+                                            <span className="text-white text-lg not-italic font-bold uppercase tracking-widest">Total Orden</span>
+                                            <span>${(cart.reduce((a,b)=>a+(b.price*b.qty),0) + (client.type === 'Domicilio' && typeof delivery === 'number' ? delivery : 0)).toLocaleString()}</span>
                                         </div>
                                         
                                         <button onClick={handleSend} disabled={!client.name || (client.type==='Domicilio' && typeof delivery !== 'number') || cart.length === 0} className="w-full py-6 rounded-full gold-bg font-black text-xl uppercase shadow-2xl disabled:bg-zinc-800 disabled:text-zinc-600">ENVIAR PEDIDO</button>
@@ -264,7 +262,7 @@
                                     <div className="text-center py-10 space-y-4">
                                         <span className="text-5xl">🌙</span>
                                         <h3 className="text-2xl font-black gold-text italic">ESTAMOS CERRADOS</h3>
-                                        <p className="text-zinc-400 font-bold uppercase text-[10px]">Abrimos de {config.open}:00 a {config.close}:00</p>
+                                        <p className="text-zinc-400 font-bold uppercase text-[10px]">Horario: {config.open}:00 a {config.close}:00</p>
                                         <button onClick={()=>setIsCartOpen(false)} className="w-full bg-white/5 py-4 rounded-2xl font-black text-zinc-500">VOLVER LUEGO</button>
                                     </div>
                                 )}
@@ -272,7 +270,7 @@
                         </div>
                     </div>
                 )}
-                {loadingLoc && <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center font-black gold-text animate-pulse uppercase italic tracking-widest">Calculando con GPS...</div>}
+                {loadingLoc && <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center font-black gold-text animate-pulse uppercase italic tracking-widest">CALCULANDO DISTANCIA...</div>}
             </div>
         );
     };
@@ -299,15 +297,15 @@
         if(!auth) return (
             <div className="admin-view flex flex-col items-center justify-center p-10 text-center text-white">
                 <img src="https://raw.githubusercontent.com/andrescaifucardenas-hue/CAIFU/main/logo.png.png" className="w-24 mb-6" />
-                <h2 className="text-2xl font-black gold-text mb-8 uppercase italic">ADMIN CAIFU v750</h2>
-                <button onClick={()=>{ setAuth(true); }} className="gold-bg w-full py-6 rounded-[2rem] font-black uppercase text-xl shadow-2xl">ENTRAR AL PANEL</button>
+                <h2 className="text-2xl font-black gold-text mb-8 uppercase italic tracking-widest">Admin Caifu v760</h2>
+                <button onClick={()=>{ setAuth(true); }} className="gold-bg w-full py-6 rounded-[2rem] font-black uppercase text-xl shadow-2xl">Entrar al Sistema</button>
             </div>
         );
 
         return (
             <div className="admin-view p-5 pb-24 text-white animate-fade-in">
                 <div className="flex justify-between items-center mb-6 pb-4 border-b border-white/10">
-                    <h2 className="text-xl font-black gold-text italic uppercase">Admin Caifu</h2>
+                    <h2 className="text-xl font-black gold-text italic uppercase">Panel de Control</h2>
                     <button onClick={onExit} className="bg-red-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase">Salir</button>
                 </div>
                 
@@ -322,18 +320,18 @@
                         {orders.filter(o=>o.status==='pending').map(o => (
                             <div key={o.fid} className="p-5 rounded-[2.5rem] bg-zinc-900 border border-zinc-800 border-l-4 border-l-yellow-500 shadow-xl">
                                 <div className="flex justify-between text-yellow-500 font-black text-[10px] mb-2 uppercase italic"><span>{o.name}</span><span>{o.time}</span></div>
-                                <p className="text-sm font-black mb-4 uppercase">{o.items}</p>
+                                <p className="text-sm font-black mb-4 uppercase text-zinc-100">{o.items}</p>
                                 <div className="text-[10px] bg-black/40 p-3 rounded-2xl mb-4 text-zinc-400 font-bold uppercase leading-relaxed">
                                     Pago: {o.payment} | {o.type === 'Mesa' ? `MESA: ${o.table}` : `DIR: ${o.address}`} <br/>
                                     NOTAS: {o.notes || '---'}
                                 </div>
                                 <div className="flex justify-between items-center pt-2 border-t border-zinc-800 mb-4">
-                                    <span className="text-[10px] font-bold text-zinc-500 uppercase">Cobrar:</span>
-                                    <span className="text-xl font-black text-green-500 italic">${o.total?.toLocaleString()}</span>
+                                    <span className="text-[10px] font-bold text-zinc-500 uppercase italic">Total Cobrar:</span>
+                                    <span className="text-xl font-black text-green-500 italic">$ {o.total?.toLocaleString() || "0"}</span>
                                 </div>
                                 <div className="flex gap-2">
-                                    <button onClick={()=>db.ref(`orders/${o.fid}/status`).set('done')} className="flex-1 bg-green-600 py-3 rounded-2xl flex justify-center shadow-lg">✅</button>
-                                    <button onClick={()=>db.ref(`orders/${o.fid}/status`).set('cancel')} className="flex-1 bg-red-600 py-3 rounded-2xl flex justify-center">❌</button>
+                                    <button onClick={()=>db.ref(`orders/${o.fid}/status`).set('done')} className="flex-1 bg-green-600 py-3 rounded-2xl flex justify-center shadow-lg text-xl">✅</button>
+                                    <button onClick={()=>db.ref(`orders/${o.fid}/status`).set('cancel')} className="flex-1 bg-red-600 py-3 rounded-2xl flex justify-center text-xl">❌</button>
                                 </div>
                             </div>
                         ))}
@@ -352,7 +350,7 @@
                                 <p className="text-xs font-black uppercase">{o.name} - {o.items}</p>
                                 <div className="flex justify-between mt-3 text-[10px] font-black gold-text border-t border-zinc-800 pt-2 italic">
                                     <span>{o.table || 'Domicilio'}</span>
-                                    <span>$ {o.total?.toLocaleString()}</span>
+                                    <span>$ {o.total?.toLocaleString() || "0"}</span>
                                 </div>
                             </div>
                         ))}
@@ -361,7 +359,7 @@
 
                 {tab === 'menu' && (
                     <div className="space-y-4">
-                        <button onClick={()=>{const c=prompt("Nombre Categoría:"); if(c) save(`menu/${c.toUpperCase()}`, [{id:Date.now(), name:"NUEVO PLATO", price:0}]);}} className="w-full bg-green-600 py-3 rounded-xl font-black text-xs uppercase shadow-lg">+ CATEGORÍA</button>
+                        <button onClick={()=>{const c=prompt("Nombre:"); if(c) save(`menu/${c.toUpperCase()}`, [{id:Date.now(), name:"PLATO NUEVO", price:0}]);}} className="w-full bg-green-600 py-3 rounded-xl font-black text-xs uppercase shadow-lg">+ CATEGORÍA</button>
                         {Object.keys(menuData).map(cat => (
                             <div key={cat} className="p-4 bg-zinc-900 rounded-[2.5rem] border border-zinc-800 mb-4 shadow-xl">
                                 <div className="flex justify-between items-center border-b border-white/5 pb-2 mb-4"><span className="gold-text font-black text-xs uppercase italic">{cat}</span><button onClick={()=>db.ref(`menu/${cat}`).remove()} className="text-red-500 text-xs">🗑️</button></div>
@@ -380,7 +378,7 @@
                         <label htmlFor="bg-in-admin" className="w-full bg-blue-600 py-5 rounded-3xl flex justify-center items-center font-black text-sm cursor-pointer uppercase shadow-lg">📷&nbsp;SUBIR FONDO</label>
                         <div className="grid grid-cols-2 gap-4">
                             {config.bg && config.bg.map((img, i) => (
-                                <div key={i} className="relative aspect-9-16 rounded-2xl overflow-hidden border-2 border-zinc-800"><img src={img} className="w-full h-full object-cover" /><button onClick={()=>{const n=[...config.bg]; n.splice(i,1); save('config/bg', n)}} className="absolute top-2 right-2 bg-red-600 p-2 rounded-full">🗑️</button></div>
+                                <div key={i} className="relative aspect-9-16 rounded-2xl overflow-hidden border-2 border-zinc-800"><img src={img} className="w-full h-full object-cover" /><button onClick={()=>{const n=[...config.bg]; n.splice(i,1); save('config/bg', n)}} className="absolute top-2 right-2 bg-red-600 p-2 rounded-full shadow-lg">🗑️</button></div>
                             ))}
                         </div>
                     </div>
@@ -390,16 +388,16 @@
                     <div className="space-y-4">
                         <button onClick={()=>navigator.geolocation.getCurrentPosition(p=>save('config/loc', {lat:p.coords.latitude, lng:p.coords.longitude}), null, {enableHighAccuracy:true})} className="w-full bg-blue-600 py-4 rounded-2xl font-black text-xs shadow-lg uppercase tracking-widest">📍 FIJAR LOCAL AQUÍ</button>
                         <div className="p-5 bg-zinc-900 rounded-[2.5rem] border border-zinc-800 shadow-xl">
-                            <h3 className="text-[10px] font-black uppercase text-zinc-500 mb-4 italic">Zonas de Domicilio</h3>
-                            <button onClick={()=>save('config/zones', [...(config.zones || []), {id:Date.now(), label:"Zona", km:3, price:3000}])} className="bg-green-600 w-full py-2 rounded-xl mb-4 font-bold">+</button>
+                            <h3 className="text-[10px] font-black uppercase text-zinc-500 italic mb-4">Zonas y Precios</h3>
+                            <button onClick={()=>save('config/zones', [...(config.zones || []), {id:Date.now(), label:"Zona", km:3, price:3000}])} className="bg-green-600 w-full py-2 rounded-xl mb-4 font-bold shadow-md">+</button>
                             {(config.zones || []).map((z, i) => (
                                 <div key={z.id} className="bg-zinc-800/50 p-4 rounded-3xl mb-3 border border-zinc-700">
-                                    <input value={z.label} onChange={e=>{const n=[...config.zones]; n[i].label=e.target.value; save('config/zones', n)}} className="bg-transparent font-black uppercase text-xs w-full mb-3 outline-none border-b border-zinc-700 pb-1" />
+                                    <input value={z.label} onChange={e=>{const n=[...config.zones]; n[i].label=e.target.value.toUpperCase(); save('config/zones', n)}} className="bg-transparent font-black uppercase text-xs w-full mb-3 outline-none border-b border-zinc-700 pb-1" />
                                     <div className="grid grid-cols-2 gap-4 text-[8px] uppercase font-bold text-zinc-500">
-                                        <div>Km Máx <input type="number" value={z.km} onChange={e=>{const n=[...config.zones]; n[i].km=parseFloat(e.target.value); save('config/zones', n)}} className="w-full bg-zinc-700 p-2 rounded-xl text-xs text-white border border-zinc-600" /></div>
-                                        <div>Precio $ <input type="number" value={z.price} onChange={e=>{const n=[...config.zones]; n[i].price=parseInt(e.target.value); save('config/zones', n)}} className="w-full bg-zinc-700 p-2 rounded-xl text-xs text-white border border-zinc-600" /></div>
+                                        <div>Km Máx <input type="number" value={z.km} onChange={e=>{const n=[...config.zones]; n[i].km=parseFloat(e.target.value); save('config/zones', n)}} className="w-full bg-zinc-700 p-2 rounded-xl text-xs text-white border border-zinc-600 outline-none" /></div>
+                                        <div>Precio $ <input type="number" value={z.price} onChange={e=>{const n=[...config.zones]; n[i].price=parseInt(e.target.value); save('config/zones', n)}} className="w-full bg-zinc-700 p-2 rounded-xl text-xs text-white border border-zinc-600 outline-none" /></div>
                                     </div>
-                                    <button onClick={()=>save('config/zones', config.zones.filter(x=>x.id!==z.id))} className="text-red-500 text-[8px] mt-4 w-full text-right font-black italic">Eliminar</button>
+                                    <button onClick={()=>save('config/zones', config.zones.filter(x=>x.id!==z.id))} className="text-red-500 text-[8px] mt-4 w-full text-right font-black italic">Eliminar Zona</button>
                                 </div>
                             ))}
                         </div>
@@ -409,20 +407,20 @@
                 {tab === 'ajustes' && (
                     <div className="p-6 bg-zinc-900 rounded-[3rem] border border-zinc-800 shadow-xl space-y-8">
                         <div>
-                            <h3 className="text-[10px] font-black uppercase text-zinc-500 mb-4 italic">WhatsApp Negocio (Con 57)</h3>
+                            <h3 className="text-[10px] font-black uppercase text-zinc-500 mb-4 italic">WhatsApp Negocio (57...)</h3>
                             <input value={config.ws} onChange={e=>save('config/ws', e.target.value)} className="w-full bg-black/50 p-4 rounded-xl text-white font-black border border-zinc-700 outline-none" />
                         </div>
                         <div>
-                            <h3 className="text-[10px] font-black uppercase text-zinc-500 mb-4 italic">Horarios (24 horas)</h3>
+                            <h3 className="text-[10px] font-black uppercase text-zinc-500 mb-4 italic">Horario (24h)</h3>
                             <div className="grid grid-cols-2 gap-4">
-                                <div><span className="text-[8px] uppercase">Abre:</span><input type="number" value={config.open} onChange={e=>save('config/open', parseInt(e.target.value))} className="w-full bg-black/50 p-3 rounded-xl outline-none" /></div>
-                                <div><span className="text-[8px] uppercase">Cierra:</span><input type="number" value={config.close} onChange={e=>save('config/close', parseInt(e.target.value))} className="w-full bg-black/50 p-3 rounded-xl outline-none" /></div>
+                                <div><span className="text-[8px] uppercase font-bold">Abre:</span><input type="number" value={config.open} onChange={e=>save('config/open', parseInt(e.target.value))} className="w-full bg-black/50 p-3 rounded-xl outline-none" /></div>
+                                <div><span className="text-[8px] uppercase font-bold">Cierra:</span><input type="number" value={config.close} onChange={e=>save('config/close', parseInt(e.target.value))} className="w-full bg-black/50 p-3 rounded-xl outline-none" /></div>
                             </div>
                         </div>
                         <div className="pt-4 border-t border-zinc-800">
-                            <h3 className="text-[10px] font-black uppercase text-zinc-500 mb-4 italic">Sonido MP3</h3>
+                            <h3 className="text-[10px] font-black uppercase text-zinc-500 mb-4 italic">Notificación MP3</h3>
                             <input type="file" accept="audio/*" onChange={e=>handleUp(e, 'sound')} className="text-[10px] bg-zinc-800 p-4 rounded-2xl w-full border border-zinc-700 mb-4" />
-                            {config.sound && <button onClick={()=>{audioRef.current.src=config.sound; audioRef.current.play();}} className="gold-bg w-full py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg">PROBAR ALARMA 🔊</button>}
+                            {config.sound && <button onClick={()=>{audioRef.current.src=config.sound; audioRef.current.play();}} className="gold-bg w-full py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg">Probar Sonido 🔊</button>}
                         </div>
                     </div>
                 )}
