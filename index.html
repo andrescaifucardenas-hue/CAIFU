@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CAIFU MASTER v630</title>
+    <title>CAIFU MASTER v640</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -33,7 +33,7 @@
 <body>
     <div id="master-loader">
         <div style="font-size: 32px; font-weight: 800; color: white; font-style: italic;">CAIFU VIP</div>
-        <div style="font-size: 10px; color: white; margin-top: 10px; letter-spacing: 2px;">COMPILANDO v630 TOTAL...</div>
+        <div style="font-size: 10px; color: white; margin-top: 10px; letter-spacing: 2px;">SINCRONIZACIÓN TOTAL v640...</div>
     </div>
     <div id="root"></div>
 
@@ -61,21 +61,6 @@
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     };
 
-    const compress = (file, size = 400) => {
-        return new Promise(res => {
-            const r = new FileReader(); r.readAsDataURL(file);
-            r.onload = e => {
-                const img = new Image(); img.src = e.target.result;
-                img.onload = () => {
-                    const c = document.createElement('canvas');
-                    const s = size / img.width; c.width = size; c.height = img.height * s;
-                    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-                    res(c.toDataURL('image/jpeg', 0.25));
-                }
-            }
-        });
-    };
-
     const Icons = {
         Plus: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>,
         Trash: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg>,
@@ -100,18 +85,18 @@
         const [loadingLoc, setLoadingLoc] = useState(false);
         
         const audioRef = useRef(new Audio());
-        const lastPending = useRef(0);
+        const lastPendingCount = useRef(0);
 
         useEffect(() => {
             db.ref('config').on('value', s => s.exists() && setConfig(s.val()));
             db.ref('menu').on('value', s => s.exists() && setMenuData(s.val()));
             db.ref('orders').on('value', s => {
                 const all = s.exists() ? Object.keys(s.val()).map(k => ({...s.val()[k], fid: k, status: s.val()[k].status || 'pending'})).reverse() : [];
-                const pends = all.filter(o => o.status === 'pending').length;
-                if(isAdmin && pends > lastPending.current && config.sound) {
+                const pendings = all.filter(o => o.status === 'pending').length;
+                if(isAdmin && pendings > lastPendingCount.current && config.sound) {
                     audioRef.current.src = config.sound; audioRef.current.play().catch(()=>{});
                 }
-                lastPending.current = pends;
+                lastPendingCount.current = pendings;
                 setOrders(all);
             });
             setTimeout(() => document.getElementById('master-loader').style.display='none', 1000);
@@ -136,11 +121,11 @@
                             ))}
                             <div className="bg-overlay"></div>
                         </div>
-                        <h1 className="z-10 text-7xl font-black italic uppercase text-center pt-10 gold-text tracking-tighter">CAIFU</h1>
+                        <h1 className="z-10 text-7xl font-black italic gold-text text-center pt-10">CAIFU</h1>
                         <button onClick={()=>setView('menu')} className="z-10 w-full gold-bg py-6 rounded-full font-black text-xl uppercase shadow-2xl active:scale-95 transition">Pedir Ahora</button>
                     </div>
                 ) : (
-                    <div className="animate-fade-in">
+                    <div className="animate-fade-in text-white">
                         <header className="sticky top-0 bg-black/80 backdrop-blur-xl p-5 border-b border-white/10 flex justify-between items-center z-50">
                             <button onClick={()=>setView('home')} className="p-2 bg-white/10 rounded-full text-white"><Icons.Home/></button>
                             <span className="font-black italic gold-text">MENU CAIFU</span>
@@ -154,7 +139,7 @@
                                 <button key={cat} onClick={()=>document.getElementById(cat).scrollIntoView({behavior:'smooth', block:'start'})} className="px-5 py-2 rounded-full bg-white/5 border border-white/10 text-[10px] font-black uppercase gold-text whitespace-nowrap">{cat}</button>
                             ))}
                         </div>
-                        <main className="p-6 space-y-12 pb-24 text-white">
+                        <main className="p-6 space-y-12 pb-24">
                             {Object.keys(menuData).map(cat => (
                                 <div key={cat} id={cat} className="scroll-mt-32">
                                     <h2 className="text-3xl font-black border-l-[10px] gold-border pl-4 mb-8 uppercase italic gold-text">{cat}</h2>
@@ -165,7 +150,7 @@
                                                     {i.img && <img src={i.img} className="w-full h-full object-cover" />}
                                                 </div>
                                                 <div className="flex-1 pr-2">
-                                                    <h3 className="font-black text-sm uppercase text-white leading-tight">{i.name}</h3>
+                                                    <h3 className="font-black text-sm uppercase">{i.name}</h3>
                                                     <div className="flex justify-between items-center mt-3">
                                                         <span className="gold-text font-black text-xl italic">${i.price.toLocaleString()}</span>
                                                         <button onClick={()=>{
@@ -183,6 +168,7 @@
                         </main>
                     </div>
                 )}
+
                 {isCartOpen && (
                     <div className="fixed inset-0 bg-black/95 z-[100] flex items-end animate-fade-in text-white">
                         <div className="bg-zinc-900 w-full rounded-t-[3.5rem] p-10 max-h-[96vh] overflow-y-auto no-scrollbar shadow-2xl border-t border-white/10">
@@ -199,17 +185,17 @@
                                 ))}
                             </div>
                             <div className="space-y-6">
-                                <input placeholder="Nombre Completo" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl font-black text-white outline-none focus:border-[#d4af37]" onChange={e=>setClient({...client, name:e.target.value})} />
+                                <input placeholder="Tu Nombre" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl font-black text-white outline-none focus:border-[#d4af37]" value={client.name} onChange={e=>setClient({...client, name:e.target.value})} />
                                 <div className="flex gap-2">
                                     {['Domicilio', 'Mesa'].map(t => (
                                         <button key={t} onClick={()=>setClient({...client, type:t})} className={`flex-1 py-4 rounded-2xl font-black ${client.type===t?'gold-bg':'bg-white/5 text-zinc-500'}`}>{t}</button>
                                     ))}
                                 </div>
                                 {client.type==='Mesa' ? (
-                                    <input placeholder="Número de Mesa" type="number" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white" onChange={e=>setClient({...client, table:e.target.value})} />
+                                    <input placeholder="Número de Mesa" type="number" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black" value={client.table} onChange={e=>setClient({...client, table:e.target.value})} />
                                 ) : (
                                     <div className="space-y-4">
-                                        <input placeholder="Dirección exacta" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white outline-none" onChange={e=>setClient({...client, address:e.target.value})} />
+                                        <input placeholder="Dirección exacta" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black outline-none" value={client.address} onChange={e=>setClient({...client, address:e.target.value})} />
                                         <button onClick={()=>{
                                             setLoadingLoc(true);
                                             navigator.geolocation.getCurrentPosition(pos => {
@@ -227,14 +213,16 @@
                                         <button key={p} onClick={()=>setClient({...client, payment:p})} className={`flex-1 py-3 rounded-xl font-black text-[9px] ${client.payment===p?'gold-bg':'bg-white/5 text-zinc-500'}`}>{p}</button>
                                     ))}
                                 </div>
-                                <textarea placeholder="Notas extra..." className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white h-20" onChange={e=>setClient({...client, notes:e.target.value})} />
+                                <textarea placeholder="Notas extra (Ej: Sin salsas)" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white h-20" value={client.notes} onChange={e=>setClient({...client, notes:e.target.value})} />
                                 <div className="flex justify-between text-4xl font-black gold-text pt-4 border-t border-dashed border-white/10 italic">
                                     <span className="text-white">TOTAL</span><span>${(cart.reduce((a,b)=>a+(b.price*b.qty),0) + (client.type==='Domicilio'?(typeof delivery==='number'?delivery:0):0)).toLocaleString()}</span>
                                 </div>
                                 <button onClick={()=>{
-                                    db.ref('orders').push({...client, items: cart.map(i=>`${i.qty}x ${i.name}`).join(', '), total: (cart.reduce((a,b)=>a+(b.price*b.qty),0) + (client.type==='Domicilio'?(Number(delivery)||0):0)), status:'pending', time: new Date().toLocaleTimeString()});
-                                    setCart([]); setIsCartOpen(false); alert("¡Pedido Enviado!");
-                                }} disabled={!client.name || (client.type==='Mesa' && !client.table) || (client.type==='Domicilio' && typeof delivery !== 'number') || cart.length === 0} className="w-full py-6 rounded-full gold-bg font-black text-xl uppercase shadow-2xl">ENVIAR PEDIDO</button>
+                                    const totalFinal = cart.reduce((a,b)=>a+(b.price*b.qty),0) + (client.type==='Domicilio'?(Number(delivery)||0):0);
+                                    db.ref('orders').push({...client, items: cart.map(i=>`${i.qty}x ${i.name}`).join(', '), total: totalFinal, status:'pending', time: new Date().toLocaleTimeString()});
+                                    setCart([]); setIsCartOpen(false); setClient({ name: "", address: "", notes: "", payment: "Efectivo", type: "Domicilio", table: "" }); setDelivery(null);
+                                    alert("¡Pedido Enviado!");
+                                }} disabled={!client.name || (client.type==='Mesa' && !client.table) || (client.type==='Domicilio' && typeof delivery !== 'number') || cart.length === 0} className="w-full py-6 rounded-full gold-bg font-black text-xl uppercase shadow-2xl disabled:bg-zinc-800 disabled:text-zinc-600">ENVIAR PEDIDO</button>
                             </div>
                         </div>
                     </div>
@@ -248,30 +236,34 @@
         const [auth, setAuth] = useState(false);
         const [editing, setEditing] = useState(null);
         const [load, setLoad] = useState(false);
+        
         const save = (p, d) => db.ref(p).set(d);
 
-        const up = async (e, type) => {
+        const compressAndSave = async (e, type) => {
             const f = e.target.files[0]; if(!f) return;
             setLoad(true);
-            try {
-                if(type === 'sound') {
-                    const r = new FileReader(); r.readAsDataURL(f);
-                    r.onload = ev => save('config/sound', ev.target.result);
-                } else {
-                    const b64 = await compress(f, type==='bg'?600:400);
-                    if(type==='bg') save('config/bg', [...(config.bg || []), b64]);
-                    if(type==='item') setEditing({...editing, img: b64});
+            const b64 = await new Promise(res => {
+                const r = new FileReader(); r.readAsDataURL(f);
+                r.onload = ev => {
+                    const img = new Image(); img.src = ev.target.result;
+                    img.onload = () => {
+                        const c = document.createElement('canvas');
+                        const s = (type==='bg'?600:400) / img.width; c.width = (type==='bg'?600:400); c.height = img.height * s;
+                        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+                        res(c.toDataURL('image/jpeg', 0.25));
+                    }
                 }
-            } catch(err) {}
+            });
+            if(type==='bg') save('config/bg', [...(config.bg || []), b64]);
+            if(type==='item') setEditing({...editing, img: b64});
             setLoad(false);
-            e.target.value = null;
         };
 
         if(!auth) return (
             <div className="admin-view flex flex-col items-center justify-center p-10 text-center text-white">
-                <div className="w-20 h-20 gold-bg rounded-full flex items-center justify-center mb-6 animate-bounce shadow-xl">🔊</div>
-                <h2 className="text-2xl font-black gold-text mb-8 uppercase italic">Sistema CAIFU v630</h2>
-                <button onClick={()=>{ if(config.sound){audioRef.current.src=config.sound; audioRef.current.play().then(()=>audioRef.current.pause());} setAuth(true); }} className="gold-bg w-full py-6 rounded-[2rem] font-black uppercase text-xl shadow-2xl">ACTIVAR PANEL</button>
+                <div className="w-20 h-20 gold-bg rounded-full flex items-center justify-center mb-6 shadow-xl animate-bounce">🔊</div>
+                <h2 className="text-2xl font-black gold-text mb-8 uppercase italic tracking-tighter">Sistema de Alertas CAIFU</h2>
+                <button onClick={()=>{ if(config.sound){audioRef.current.src=config.sound; audioRef.current.play().then(()=>audioRef.current.pause());} setAuth(true); }} className="gold-bg w-full py-6 rounded-[2rem] font-black uppercase text-xl shadow-2xl">ENTRAR AL PANEL</button>
             </div>
         );
 
@@ -281,21 +273,25 @@
                     <h2 className="text-xl font-black gold-text italic">ADMIN CAIFU</h2>
                     <button onClick={onExit} className="bg-red-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase">Salir</button>
                 </div>
+                
                 <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2">
                     {['inbox', 'historial', 'menu', 'carrusel', 'gps', 'ajustes'].map(t => (
                         <button key={t} onClick={()=>setTab(t)} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase whitespace-nowrap ${tab===t?'gold-bg':'bg-zinc-900 text-zinc-500'}`}>{t}</button>
                     ))}
                 </div>
 
+                {/* TAB INBOX */}
                 {tab === 'inbox' && (
                     <div className="space-y-4">
                         {orders.filter(o=>o.status==='pending').map(o => (
                             <div key={o.fid} className="p-5 rounded-[2.5rem] bg-zinc-900 border border-zinc-800 border-l-4 border-l-yellow-500">
                                 <div className="flex justify-between text-yellow-500 font-black text-[10px] mb-2 uppercase italic"><span>{o.name}</span><span>{o.time}</span></div>
                                 <p className="text-sm font-black mb-4 uppercase">{o.items}</p>
-                                <div className="text-[10px] bg-black/40 p-3 rounded-2xl mb-4 text-zinc-400 font-bold uppercase leading-relaxed">Pago: {o.payment} | Mesa/Dir: {o.table || o.address}</div>
+                                <div className="text-[10px] bg-black/40 p-3 rounded-2xl mb-4 text-zinc-400 font-bold uppercase leading-relaxed">
+                                    Pago: {o.payment} | {o.type === 'Mesa' ? `MESA: ${o.table}` : `DIR: ${o.address}`} <br/> Notas: {o.notes || '---'}
+                                </div>
                                 <div className="flex gap-2">
-                                    <button onClick={()=>db.ref(`orders/${o.fid}/status`).set('done')} className="flex-1 bg-green-600 py-3 rounded-2xl flex justify-center"><Icons.Check/></button>
+                                    <button onClick={()=>db.ref(`orders/${o.fid}/status`).set('done')} className="flex-1 bg-green-600 py-3 rounded-2xl flex justify-center shadow-lg"><Icons.Check/></button>
                                     <button onClick={()=>db.ref(`orders/${o.fid}/status`).set('cancel')} className="flex-1 bg-red-600 py-3 rounded-2xl flex justify-center"><Icons.X/></button>
                                 </div>
                             </div>
@@ -303,25 +299,27 @@
                     </div>
                 )}
 
+                {/* TAB HISTORIAL */}
                 {tab === 'historial' && (
                     <div className="space-y-3">
-                        <button onClick={()=>db.ref('orders').remove()} className="w-full py-2 bg-red-900 text-red-200 text-[9px] font-black rounded-xl mb-4 uppercase">Limpiar Historial</button>
+                        <button onClick={()=>db.ref('orders').remove()} className="w-full py-2 bg-red-900 text-red-200 text-[9px] font-black rounded-xl mb-4 uppercase">Borrar Historial</button>
                         {orders.filter(o=>o.status!=='pending').map(o => (
                             <div key={o.fid} className="p-4 bg-zinc-900/50 rounded-2xl flex justify-between items-center border border-zinc-800 opacity-60">
-                                <div className="flex flex-col"><span className="text-[10px] font-black uppercase">{o.name}</span><span className="text-[8px] text-zinc-500 uppercase">{o.status}</span></div>
+                                <div className="flex flex-col"><span className="text-[10px] font-black uppercase">{o.name}</span><span className={`text-[8px] font-black uppercase ${o.status==='done'?'text-green-500':'text-red-500'}`}>{o.status}</span></div>
                                 <span className="text-[10px] font-black text-zinc-600">{o.time}</span>
                             </div>
                         ))}
                     </div>
                 )}
 
+                {/* TAB MENU */}
                 {tab === 'menu' && (
                     <div className="space-y-4">
                         <button onClick={()=>{const c=prompt("Nombre Categoría:"); if(c) save(`menu/${c.toUpperCase()}`, [{id:Date.now(), name:"PLATO NUEVO", price:0}]);}} className="w-full bg-green-600 py-3 rounded-xl font-black text-xs uppercase shadow-lg">+ CATEGORIA</button>
                         {Object.keys(menuData).map(cat => (
                             <div key={cat} className="p-4 bg-zinc-900 rounded-[2.5rem] border border-zinc-800 mb-4 shadow-xl">
                                 <div className="flex justify-between items-center border-b border-white/5 pb-2 mb-4"><span className="gold-text font-black text-xs uppercase italic">{cat}</span><button onClick={()=>db.ref(`menu/${cat}`).remove()} className="text-red-500"><Icons.Trash/></button></div>
-                                <button onClick={()=>setEditing({cat, name:"", desc:"", price:0})} className="w-full py-2 bg-zinc-800 rounded-xl text-[9px] font-black mb-3">+ PLATO</button>
+                                <button onClick={()=>setEditing({cat, name:"", desc:"", price:0})} className="w-full py-2 bg-zinc-800 rounded-xl text-[9px] font-black mb-3 border border-zinc-700">+ PLATO</button>
                                 {menuData[cat].map(i => (
                                     <div key={i.id} className="flex justify-between items-center text-xs py-1 border-b border-white/5 last:border-0 mb-1"><span>{i.name}</span><button onClick={()=>setEditing({...i, cat})} className="text-blue-400 font-bold">EDITAR</button></div>
                                 ))}
@@ -330,18 +328,20 @@
                     </div>
                 )}
 
+                {/* TAB CARRUSEL */}
                 {tab === 'carrusel' && (
                     <div className="space-y-4">
-                        <input type="file" onChange={e=>up(e, 'bg')} id="bg-in" className="hidden" />
+                        <input type="file" onChange={e=>compressAndSave(e, 'bg')} id="bg-in" className="hidden" />
                         <label htmlFor="bg-in" className="w-full bg-blue-600 py-5 rounded-3xl flex justify-center items-center font-black text-sm cursor-pointer uppercase shadow-lg"><Icons.Camera/>&nbsp;SUBIR FONDO</label>
                         <div className="grid grid-cols-2 gap-4">
-                            {config.bg && config.bg.map((img, i) => (
+                            {config.bg?.map((img, i) => (
                                 <div key={i} className="relative aspect-9-16 rounded-2xl overflow-hidden border-2 border-zinc-800 shadow-xl"><img src={img} className="w-full h-full object-cover" /><button onClick={()=>{const n=[...config.bg]; n.splice(i,1); save('config/bg', n)}} className="absolute top-2 right-2 bg-red-600 p-2 rounded-full shadow-lg"><Icons.Trash/></button></div>
                             ))}
                         </div>
                     </div>
                 )}
 
+                {/* TAB GPS */}
                 {tab === 'gps' && (
                     <div className="space-y-4">
                         <button onClick={()=>navigator.geolocation.getCurrentPosition(p=>save('config/loc', {lat:p.coords.latitude, lng:p.coords.longitude}), null, {enableHighAccuracy:true})} className="w-full bg-blue-600 py-4 rounded-2xl font-black text-xs shadow-lg uppercase tracking-widest">📍 FIJAR LOCAL AQUÍ</button>
@@ -361,20 +361,25 @@
                     </div>
                 )}
 
+                {/* TAB AJUSTES */}
                 {tab === 'ajustes' && (
                     <div className="p-6 bg-zinc-900 rounded-[2.5rem] border border-zinc-800 shadow-xl text-center">
                         <h3 className="text-[10px] font-black uppercase text-zinc-500 mb-6 italic tracking-widest">Sonido Notificación MP3</h3>
-                        <input type="file" accept="audio/*" onChange={e=>up(e, 'sound')} className="text-[10px] bg-zinc-800 p-4 rounded-2xl w-full border border-zinc-700 mb-6" />
+                        <input type="file" accept="audio/*" onChange={e=>{
+                            const r = new FileReader(); r.readAsDataURL(e.target.files[0]);
+                            r.onload = ev => save('config/sound', ev.target.result);
+                        }} className="text-[10px] bg-zinc-800 p-4 rounded-2xl w-full border border-zinc-700 mb-6" />
                         {config.sound && <button onClick={()=>{audioRef.current.src=config.sound; audioRef.current.play();}} className="gold-bg w-full py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg">PROBAR ALARMA 🔊</button>}
                     </div>
                 )}
 
+                {/* MODAL EDICION PLATO */}
                 {editing && (
                     <div className="fixed inset-0 bg-black/98 flex items-center justify-center p-6 z-[300] animate-fade-in">
                         <div className="bg-white text-zinc-900 p-8 rounded-[3rem] w-full max-w-sm space-y-4 shadow-2xl overflow-y-auto max-h-[90vh] no-scrollbar">
                             <div className="w-full aspect-square bg-zinc-100 rounded-[2.5rem] overflow-hidden relative border-2 border-dashed flex items-center justify-center">
                                 {editing.img ? <img src={editing.img} className="w-full h-full object-cover" /> : <Icons.Camera/>}
-                                <input type="file" onChange={e=>up(e, 'item')} className="absolute inset-0 opacity-0" />
+                                <input type="file" onChange={e=>compressAndSave(e, 'item')} className="absolute inset-0 opacity-0" />
                             </div>
                             <input placeholder="Nombre" value={editing.name} onChange={e=>setEditing({...editing, name:e.target.value})} className="w-full p-4 bg-zinc-50 rounded-2xl font-black border" />
                             <textarea placeholder="Descripción..." value={editing.desc} onChange={e=>setEditing({...editing, desc:e.target.value})} className="w-full p-4 bg-zinc-50 rounded-2xl font-bold text-xs h-20" />
@@ -391,7 +396,7 @@
                         </div>
                     </div>
                 )}
-                {load && <div className="fixed inset-0 bg-black/90 z-[400] flex items-center justify-center font-black text-yellow-500 animate-pulse uppercase italic tracking-widest">PROCESANDO...</div>}
+                {load && <div className="fixed inset-0 bg-black/90 z-[400] flex items-center justify-center font-black text-yellow-500 animate-pulse uppercase italic tracking-widest">SINCRO...</div>}
             </div>
         );
     };
