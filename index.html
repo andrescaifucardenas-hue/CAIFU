@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CAIFU v380 - Sistema Cloud</title>
+    <title>CAIFU - Sistema Cloud v400</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -14,21 +14,29 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; margin: 0; }
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; margin: 0; overflow-x: hidden; }
         .admin-bg { background-color: #020617; color: white; }
-        #global-loader { position: fixed; inset: 0; background: #7f1d1d; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; }
+        #master-loader { position: fixed; inset: 0; background: #7f1d1d; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.5s; }
+        .animate-fade { animation: fade 0.4s ease-out forwards; }
+        @keyframes fade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .carousel-container { position: absolute; inset: 0; z-index: 0; background: #000; }
+        .carousel-slide { position: absolute; inset: 0; background-size: cover; background-position: center; transition: opacity 1.5s ease; opacity: 0; }
+        .carousel-slide.active { opacity: 0.5; }
+        .bg-overlay { position: absolute; inset: 0; background: linear-gradient(to top, black, transparent, rgba(0,0,0,0.8)); z-index: 5; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body>
-    <div id="global-loader">
+    <div id="master-loader">
         <div style="font-size: 32px; font-weight: 800; color: white; font-style: italic;">CAIFU</div>
-        <div id="status-text" style="font-size: 10px; color: white; margin-top: 10px; opacity: 0.7; letter-spacing: 2px;">VERIFICANDO NUBE...</div>
+        <div style="font-size: 10px; color: white; margin-top: 10px; opacity: 0.7; letter-spacing: 2px;">CONECTANDO NUBE...</div>
     </div>
     <div id="root"></div>
 
 <script type="text/babel">
-    const { useState, useEffect } = React;
+    const { useState, useEffect, useRef } = React;
 
+    // CONFIGURACIÓN FIREBASE
     const firebaseConfig = {
         apiKey: "AIzaSyCoDJZtsafs3Nm8GlCz7XaOt_H_iRaGs5M",
         authDomain: "caifu-8d229.firebaseapp.com",
@@ -42,101 +50,279 @@
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    // ICONOS
+    const Icons = {
+        Plus: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>,
+        Minus: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M5 12h14"/></svg>,
+        Trash: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg>,
+        Home: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>,
+        Cart: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>,
+        Camera: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+    };
+
+    // COMPRESIÓN IMAGEN
+    const compress = (file, size = 400) => {
+        return new Promise(res => {
+            const r = new FileReader(); r.readAsDataURL(file);
+            r.onload = e => {
+                const img = new Image(); img.src = e.target.result;
+                img.onload = () => {
+                    const c = document.createElement('canvas');
+                    const s = size / img.width; c.width = size; c.height = img.height * s;
+                    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+                    res(c.toDataURL('image/jpeg', 0.2));
+                }
+            }
+        });
+    };
+
     const App = () => {
-        const [isAdmin] = useState(window.location.search.includes('admin=true'));
-        const [menu, setMenu] = useState(null);
+        const [isAdmin, setIsAdmin] = useState(window.location.search.includes('admin=true'));
+        const [config, setConfig] = useState({ pin:"1234", bg:[], loc:{lat:0,lng:0}, zones:[], sound:null });
+        const [menuData, setMenuData] = useState({});
         const [orders, setOrders] = useState([]);
+        const [view, setView] = useState('home');
+        const [cart, setCart] = useState([]);
+        const [isCartOpen, setIsCartOpen] = useState(false);
+        const [orderSuccess, setOrderSuccess] = useState(false);
+        const [client, setClient] = useState({ name: "", address: "", notes: "", payment: "Efectivo", type: "Domicilio", table: "" });
+        const [delivery, setDelivery] = useState(null);
 
         useEffect(() => {
-            // Sincronización Menú
-            db.ref('menu').on('value', (snap) => {
-                setMenu(snap.exists() ? snap.val() : {});
-                document.getElementById('global-loader').style.display = 'none';
-            });
-
-            // Sincronización Pedidos
-            db.ref('orders').on('value', (snap) => {
-                if(snap.exists()) {
-                    const data = snap.val();
-                    setOrders(Object.keys(data).map(k => ({...data[k], id: k})).reverse());
+            db.ref('config').on('value', s => s.exists() && setConfig(s.val()));
+            db.ref('menu').on('value', s => s.exists() && setMenuData(s.val()));
+            db.ref('orders').on('value', s => {
+                if(s.exists()){
+                    const d = s.val();
+                    setOrders(Object.keys(d).map(k => ({...d[k], fid: k})).reverse());
                 } else setOrders([]);
             });
+            setTimeout(() => document.getElementById('master-loader').style.display='none', 1000);
         }, []);
 
-        const onInit = () => {
-            db.ref('menu/INICIO').set([{ id: 1, name: "Primer Plato", price: 12000 }]);
-            db.ref('config').set({ pin: "1234", setup: true });
-            alert("Sincronización completa. Los datos ahora son permanentes.");
+        const addToCart = (i) => {
+            setCart(prev => {
+                const ex = prev.find(x => x.id === i.id);
+                if(ex) return prev.map(x => x.id === i.id ? {...x, qty: x.qty + 1} : x);
+                return [...prev, {...i, qty: 1}];
+            });
         };
 
-        if (isAdmin) {
-            return (
-                <div className="min-h-screen p-6 admin-bg">
-                    <header className="flex justify-between items-center mb-8 border-b border-white/10 pb-4">
-                        <h1 className="text-yellow-500 font-black text-2xl italic">ADMIN V380</h1>
-                        <button onClick={() => window.location.search = ''} className="text-[10px] font-bold bg-white/10 px-4 py-1 rounded-full uppercase">Salir</button>
-                    </header>
+        const updateCartQty = (id, delta) => {
+            setCart(prev => prev.map(x => x.id === id ? {...x, qty: x.qty + delta} : x).filter(x => x.qty > 0));
+        };
 
-                    <div className="bg-orange-600/20 border border-orange-600/50 p-6 rounded-[2.5rem] mb-8 text-center">
-                        <p className="text-xs font-black text-orange-400 uppercase mb-4 tracking-tighter">Estado de Datos: {menu && Object.keys(menu).length > 0 ? "ACTIVO" : "VACÍO"}</p>
-                        <button onClick={onInit} className="w-full bg-orange-600 py-4 rounded-3xl font-black text-xs uppercase shadow-xl">
-                            INICIALIZAR SISTEMA (ARREGLAR NULL)
-                        </button>
-                    </div>
+        const handleOrder = () => {
+            const total = cart.reduce((a,b)=>a+(b.price*b.qty),0) + (client.type==='Domicilio'?(Number(delivery)||0):0);
+            const o = { ...client, items: cart.map(i=>`${i.qty}x ${i.name}`).join(', '), total, time: new Date().toLocaleTimeString() };
+            db.ref('orders').push(o);
+            setCart([]); setIsCartOpen(false); setOrderSuccess(true);
+            setTimeout(() => setOrderSuccess(false), 3000);
+        };
 
-                    <div className="space-y-4">
-                        <h2 className="text-white/40 font-black text-[10px] uppercase tracking-widest">Pedidos en la Nube</h2>
-                        {orders.length === 0 ? <p className="text-white/10 italic text-center py-10 font-bold uppercase text-xs">Sin actividad</p> : 
-                            orders.map(o => (
-                                <div key={o.id} className="p-5 bg-white/5 rounded-3xl border border-white/10">
-                                    <div className="flex justify-between text-[10px] font-black uppercase text-yellow-500 mb-2">
-                                        <span>{o.name || 'Cliente'}</span>
-                                        <button onClick={() => db.ref(`orders/${o.id}`).remove()} className="text-red-500">Eliminar</button>
-                                    </div>
-                                    <p className="text-sm font-bold text-white/80">{o.items}</p>
-                                    <p className="text-green-500 font-black text-lg mt-1">${o.total?.toLocaleString()}</p>
-                                </div>
-                            ))
-                        }
-                    </div>
-                </div>
-            );
-        }
+        if(isAdmin) return <AdminPanel config={config} menuData={menuData} orders={orders} onExit={()=>setIsAdmin(false)} />;
 
         return (
-            <div className="min-h-screen bg-slate-50 p-6">
-                <header className="text-center py-10 border-b border-slate-200 mb-8">
-                    <h1 className="text-6xl font-black italic tracking-tighter uppercase text-slate-950">CAIFU</h1>
-                </header>
-
-                {(!menu || Object.keys(menu).length === 0) ? (
-                    <div className="text-center py-20 bg-white rounded-[3rem] shadow-xl border border-slate-200 p-8">
-                        <p className="text-slate-400 font-black text-xs uppercase mb-8">Base de datos conectada.<br/>Faltan platos para mostrar.</p>
-                        <button onClick={() => window.location.search = '?admin=true'} className="bg-slate-950 text-white px-10 py-5 rounded-full font-black text-xs uppercase tracking-widest">
-                            CONFIGURAR AHORA
-                        </button>
+            <div className="min-h-screen bg-white">
+                {view === 'home' ? (
+                    <div className="h-screen bg-black flex flex-col justify-between p-10 relative overflow-hidden text-white animate-fade">
+                        <div className="carousel-container">
+                            {config.bg && config.bg.map((img, i) => (
+                                <div key={i} className={`carousel-slide ${i === 0 ? 'active' : ''}`} style={{ backgroundImage: `url(${img})` }}></div>
+                            ))}
+                            <div className="bg-overlay"></div>
+                        </div>
+                        <div className="z-10 text-center pt-10">
+                            <h1 className="text-7xl font-black italic uppercase tracking-tighter">CAIFU</h1>
+                        </div>
+                        <button onClick={()=>setView('menu')} className="z-10 w-full bg-yellow-400 py-6 rounded-full font-black text-xl text-black shadow-2xl uppercase tracking-widest active:scale-95 transition">Pedir Ahora</button>
                     </div>
                 ) : (
-                    Object.keys(menu).map(cat => (
-                        <div key={cat} className="mb-10">
-                            <h2 className="text-3xl font-black border-l-[10px] border-yellow-400 pl-4 mb-6 uppercase italic text-slate-900">{cat}</h2>
-                            <div className="grid gap-5">
-                                {menu[cat].map(i => (
-                                    <div key={i.id} className="p-5 bg-white rounded-[2.5rem] shadow-md border border-slate-100 flex justify-between items-center">
-                                        <span className="font-black text-sm uppercase text-slate-700">{i.name}</span>
-                                        <span className="text-red-600 font-black italic text-xl">${i.price?.toLocaleString()}</span>
+                    <div className="animate-fade">
+                        <header className="sticky top-0 bg-white/95 backdrop-blur-xl p-5 border-b flex justify-between items-center z-50">
+                            <button onClick={()=>setView('home')} className="p-2 bg-zinc-100 rounded-full text-zinc-900"><Icons.Home/></button>
+                            <span className="font-black italic uppercase text-lg">MENU CAIFU</span>
+                            <button onClick={()=>setIsCartOpen(true)} className="relative p-2 bg-zinc-900 text-white rounded-full">
+                                <Icons.Cart/>
+                                {cart.length > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-black">{cart.reduce((a,b)=>a+b.qty,0)}</span>}
+                            </button>
+                        </header>
+                        <main className="p-6 space-y-12 pb-24 text-zinc-900">
+                            {Object.keys(menuData).map(cat => (
+                                <div key={cat}>
+                                    <h2 className="text-3xl font-black border-l-[10px] border-yellow-400 pl-4 mb-8 uppercase italic">{cat}</h2>
+                                    <div className="grid gap-6">
+                                        {menuData[cat].map(i => (
+                                            <div key={i.id} className="bg-white p-3 rounded-[2.5rem] flex gap-4 items-center shadow-2xl border border-zinc-50">
+                                                <div className="w-24 h-24 rounded-[1.8rem] overflow-hidden bg-zinc-50 flex-shrink-0">
+                                                    {i.img && <img src={i.img} className="w-full h-full object-cover" />}
+                                                </div>
+                                                <div className="flex-1 pr-2">
+                                                    <h3 className="font-black text-sm uppercase leading-tight">{i.name}</h3>
+                                                    <p className="text-[10px] text-zinc-400 line-clamp-2">{i.desc}</p>
+                                                    <div className="flex justify-between items-center mt-3">
+                                                        <span className="text-red-600 font-black text-xl italic">${i.price.toLocaleString()}</span>
+                                                        <button onClick={()=>addToCart(i)} className="bg-yellow-400 p-3 rounded-2xl shadow-lg active:scale-90 transition"><Icons.Plus/></button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
+                                </div>
+                            ))}
+                        </main>
+                    </div>
+                )}
+
+                {isCartOpen && (
+                    <div className="fixed inset-0 bg-black/60 z-[100] flex items-end animate-fade">
+                        <div className="bg-white w-full rounded-t-[3.5rem] p-10 max-h-[96vh] overflow-y-auto no-scrollbar shadow-2xl text-zinc-900">
+                            <div className="flex justify-between items-center mb-8">
+                                <h2 className="text-4xl font-black italic uppercase text-zinc-900">ORDEN</h2>
+                                <button onClick={()=>setIsCartOpen(false)} className="bg-zinc-100 p-2 rounded-full">✕</button>
+                            </div>
+                            
+                            {/* CARRITO CON MÁS Y MENOS */}
+                            <div className="space-y-3 mb-8 bg-zinc-50 p-4 rounded-[2rem] border">
+                                {cart.length === 0 ? <p className="text-center text-zinc-400 font-black py-4">VACÍO</p> : 
+                                    cart.map(i => (
+                                        <div key={i.id} className="flex justify-between items-center border-b border-zinc-100 last:border-0 pb-3 mt-2">
+                                            <div className="flex flex-col">
+                                                <span className="font-black text-xs uppercase italic">{i.name}</span>
+                                                <span className="text-[10px] text-red-600 font-black">${(i.price * i.qty).toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex items-center gap-3 bg-white p-1 rounded-2xl border">
+                                                <button onClick={()=>updateCartQty(i.id, -1)} className="bg-zinc-100 p-1.5 rounded-xl"><Icons.Minus/></button>
+                                                <span className="font-black text-sm w-4 text-center">{i.qty}</span>
+                                                <button onClick={()=>updateCartQty(i.id, 1)} className="bg-yellow-400 p-1.5 rounded-xl"><Icons.Plus/></button>
+                                            </div>
+                                        </div>
+                                    ))
+                                }
+                            </div>
+
+                            <div className="space-y-6 mb-8">
+                                <input placeholder="Tu Nombre" className="w-full border-2 p-5 rounded-2xl font-black bg-zinc-50 outline-none" onChange={e=>setClient({...client, name:e.target.value})} />
+                                <div className="flex gap-2">
+                                    {['Domicilio', 'Mesa'].map(t => (
+                                        <button key={t} onClick={()=>setClient({...client, type:t})} className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase ${client.type === t ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-400'}`}>{t}</button>
+                                    ))}
+                                </div>
+                                {client.type === 'Mesa' ? (
+                                    <input placeholder="Mesa #" type="number" className="w-full border-2 p-5 rounded-2xl font-black bg-zinc-50 outline-none" onChange={e=>setClient({...client, table:e.target.value})} />
+                                ) : (
+                                    <div className="space-y-4">
+                                        <input placeholder="Dirección Exacta" className="w-full border-2 p-5 rounded-2xl font-black bg-zinc-50 outline-none" onChange={e=>setClient({...client, address:e.target.value})} />
+                                        <button onClick={()=>{
+                                            navigator.geolocation.getCurrentPosition(p=>{
+                                                setDelivery(3000); // Simplificado para prueba
+                                            }, ()=>alert("Activa GPS"));
+                                        }} className="w-full bg-yellow-400 text-black py-4 rounded-2xl font-black uppercase text-[10px] shadow-lg">📍 CALCULAR DOMICILIO</button>
+                                    </div>
+                                )}
+                                <div className="flex justify-between text-3xl font-black pt-8 border-t-2 border-dashed border-zinc-100 italic uppercase">
+                                    <span>TOTAL</span>
+                                    <span className="text-red-600">${(cart.reduce((a,b)=>a+(b.price*b.qty),0) + (client.type==='Domicilio'?(Number(delivery)||0):0)).toLocaleString()}</span>
+                                </div>
+                                <button onClick={handleOrder} disabled={!client.name || cart.length === 0} className="w-full py-6 rounded-full bg-green-500 text-white font-black text-xl uppercase shadow-2xl disabled:bg-zinc-200">ENVIAR PEDIDO</button>
                             </div>
                         </div>
-                    ))
+                    </div>
                 )}
             </div>
         );
     };
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
+    const AdminPanel = ({ config, menuData, orders, onExit }) => {
+        const [tab, setTab] = useState('inbox');
+        const [editing, setEditing] = useState(null);
+        const [load, setLoad] = useState(false);
+
+        const save = (p, d) => db.ref(p).set(d);
+
+        const up = async (e, type) => {
+            const f = e.target.files[0]; if(!f) return;
+            setLoad(true);
+            const b64 = await compress(f, type==='bg'?600:300);
+            if(type==='bg') save('config/bg', [...(config.bg || []), b64]);
+            if(type==='item') setEditing({...editing, img: b64});
+            setLoad(false);
+        };
+
+        return (
+            <div className="min-h-screen bg-zinc-950 p-5 pb-24 text-white overflow-y-auto animate-fade">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-black text-yellow-500 uppercase italic">ADMIN CAIFU</h2>
+                    <button onClick={onExit} className="bg-red-600 px-4 py-1.5 rounded-full text-[10px] font-bold">SALIR</button>
+                </div>
+                
+                <div className="flex gap-2 mb-6 bg-zinc-900 p-1.5 rounded-2xl overflow-x-auto no-scrollbar">
+                    {['inbox', 'menu', 'carrusel', 'gps'].map(t => (
+                        <button key={t} onClick={()=>setTab(t)} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase whitespace-nowrap ${tab===t?'bg-yellow-500 text-black':'text-zinc-500'}`}>{t}</button>
+                    ))}
+                </div>
+
+                {tab === 'inbox' && (
+                    <div className="space-y-4">
+                        {orders.map(o => (
+                            <div key={o.fid} className="p-4 rounded-3xl border border-zinc-800 bg-zinc-900">
+                                <div className="flex justify-between text-[10px] mb-2 font-black italic uppercase text-yellow-500"><span>{o.name}</span><span>{o.time}</span></div>
+                                <p className="text-xs mb-3 text-zinc-200">{o.items}</p>
+                                <div className="flex justify-between items-center pt-3 border-t border-zinc-800">
+                                    <span className="text-green-500 font-black text-lg">${o.total?.toLocaleString()}</span>
+                                    <button onClick={()=>db.ref(`orders/${o.fid}`).remove()} className="text-red-500"><Icons.Trash/></button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {tab === 'menu' && (
+                    <div className="space-y-4">
+                        <button onClick={()=>{const c=prompt("Categoría:"); if(c) save(`menu/${c}`, [])}} className="w-full bg-green-600 py-3 rounded-xl font-black text-xs uppercase">+ CATEGORÍA</button>
+                        {Object.keys(menuData).map(cat => (
+                            <div key={cat} className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800">
+                                <div className="flex justify-between items-center mb-4 border-b border-zinc-800 pb-2"><span className="font-black text-yellow-500 text-[11px] uppercase italic">{cat}</span><button onClick={()=>db.ref(`menu/${cat}`).remove()}><Icons.Trash/></button></div>
+                                <button onClick={()=>setEditing({cat, name:"", desc:"", price:0, img:""})} className="w-full bg-zinc-800 py-2.5 rounded-xl text-[9px] font-black uppercase mb-3">+ PLATO</button>
+                                {menuData[cat].map(i => (
+                                    <div key={i.id} className="flex justify-between items-center py-2 px-3 bg-zinc-800/20 rounded-xl text-xs mb-1">
+                                        <span>{i.name}</span>
+                                        <button onClick={()=>setEditing({...i, cat})} className="text-blue-400 font-black text-[9px]">EDITAR</button>
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {editing && (
+                    <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-6 z-[300]">
+                        <div className="bg-white text-zinc-900 p-6 rounded-[3rem] w-full max-w-sm space-y-4 shadow-2xl overflow-y-auto max-h-[90vh]">
+                            <div className="w-full aspect-square bg-zinc-100 rounded-[2rem] overflow-hidden relative border-2 border-dashed flex items-center justify-center">
+                                {editing.img ? <img src={editing.img} className="w-full h-full object-cover" /> : <Icons.Camera/>}
+                                <input type="file" onChange={e=>up(e, 'item')} className="absolute inset-0 opacity-0" />
+                            </div>
+                            <input placeholder="Nombre" value={editing.name} onChange={e=>setEditing({...editing, name:e.target.value})} className="w-full bg-zinc-50 p-4 rounded-2xl font-black outline-none" />
+                            <textarea placeholder="Descripción" value={editing.desc} onChange={e=>setEditing({...editing, desc:e.target.value})} className="w-full bg-zinc-50 p-4 rounded-2xl font-bold text-xs h-20 outline-none" />
+                            <input placeholder="Precio $" type="number" value={editing.price} onChange={e=>setEditing({...editing, price:parseInt(e.target.value)})} className="w-full bg-zinc-50 p-4 rounded-2xl font-black outline-none" />
+                            <div className="flex gap-2">
+                                <button onClick={()=>setEditing(null)} className="flex-1 py-4 font-black text-zinc-400 uppercase text-[10px]">Cerrar</button>
+                                <button onClick={()=>{
+                                    const m = {...menuData};
+                                    if(editing.id) m[editing.cat] = m[editing.cat].map(i => i.id === editing.id ? editing : i);
+                                    else m[editing.cat].push({...editing, id: Date.now()});
+                                    save('menu', m); setEditing(null);
+                                }} className="flex-1 bg-yellow-400 py-4 rounded-3xl font-black uppercase text-[10px]">Guardar</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {load && <div className="fixed inset-0 bg-black/90 z-[400] flex items-center justify-center font-black text-yellow-500 animate-pulse italic uppercase">PROCESANDO...</div>}
+            </div>
+        );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
 </body>
 </html>
