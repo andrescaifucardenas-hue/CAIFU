@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CAIFU MASTER v560</title>
+    <title>CAIFU MASTER v570</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -36,7 +36,7 @@
 <body>
     <div id="master-loader">
         <div style="font-size: 32px; font-weight: 800; color: white; font-style: italic;">CAIFU VIP</div>
-        <div style="font-size: 10px; color: white; margin-top: 10px; letter-spacing: 2px;">RECONECTANDO TODO...</div>
+        <div style="font-size: 10px; color: white; margin-top: 10px; letter-spacing: 2px;">ACTIVANDO ALARMAS...</div>
     </div>
     <div id="root"></div>
 
@@ -56,7 +56,7 @@
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // COMPRESIÓN
+    // UTILIDADES
     const compress = (file, size = 400) => {
         return new Promise(res => {
             const r = new FileReader(); r.readAsDataURL(file);
@@ -103,20 +103,26 @@
         const [loadingLoc, setLoadingLoc] = useState(false);
         
         const audioRef = useRef(new Audio());
-        const lastCount = useRef(0);
+        const ordersCount = useRef(0);
 
         useEffect(() => {
             db.ref('config').on('value', s => s.exists() && setConfig(s.val()));
             db.ref('menu').on('value', s => s.exists() && setMenuData(s.val()));
+            
+            // ESCUCHADOR DE PEDIDOS (LÓGICA DE ALARMA)
             db.ref('orders').on('value', s => {
                 const list = s.exists() ? Object.keys(s.val()).map(k => ({...s.val()[k], fid: k})).reverse() : [];
-                if(isAdmin && list.length > lastCount.current && config.sound) {
+                
+                // Si estamos en admin y el numero de pedidos subio, sonar
+                if(isAdmin && list.length > ordersCount.current && config.sound) {
                     audioRef.current.src = config.sound;
-                    audioRef.current.play().catch(()=>{});
+                    audioRef.current.play().catch(e => console.log("Audio esperando interacción"));
                 }
-                lastCount.current = list.length;
+                
+                ordersCount.current = list.length;
                 setOrders(list);
             });
+            
             setTimeout(() => { if(document.getElementById('master-loader')) document.getElementById('master-loader').style.display='none' }, 1500);
         }, [isAdmin, config.sound]);
 
@@ -144,7 +150,7 @@
                             ))}
                             <div className="bg-overlay"></div>
                         </div>
-                        <h1 className="z-10 text-7xl font-black italic uppercase text-center pt-10 gold-text tracking-tighter shadow-2xl">CAIFU</h1>
+                        <h1 className="z-10 text-7xl font-black italic uppercase text-center pt-10 gold-text tracking-tighter">CAIFU</h1>
                         <button onClick={()=>setView('menu')} className="z-10 w-full gold-bg py-6 rounded-full font-black text-xl uppercase shadow-2xl active:scale-95 transition">Pedir Ahora</button>
                     </div>
                 ) : (
@@ -160,7 +166,7 @@
 
                         <div className="category-bar flex overflow-x-auto no-scrollbar p-3 gap-3">
                             {Object.keys(menuData).map(cat => (
-                                <button key={cat} onClick={()=>scrollToCat(cat)} className="px-5 py-2 rounded-full bg-white/5 border border-white/10 text-[10px] font-black uppercase whitespace-nowrap gold-text">
+                                <button key={cat} onClick={()=>scrollToCat(cat)} className="px-5 py-2 rounded-full bg-white/5 border border-white/10 text-[10px] font-black uppercase gold-text">
                                     {cat}
                                 </button>
                             ))}
@@ -200,7 +206,7 @@
                     <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-end animate-fade-in">
                         <div className="bg-zinc-900 w-full rounded-t-[3.5rem] p-10 max-h-[96vh] overflow-y-auto no-scrollbar shadow-2xl border-t border-white/10 text-white">
                             <div className="flex justify-between items-center mb-8">
-                                <h2 className="text-4xl font-black italic uppercase gold-text">MI ORDEN</h2>
+                                <h2 className="text-4xl font-black italic uppercase gold-text">ORDEN</h2>
                                 <button onClick={()=>setIsCartOpen(false)} className="bg-white/10 p-2 rounded-full text-white">✕</button>
                             </div>
                             <div className="space-y-3 mb-8 bg-black/40 p-4 rounded-[2rem] border border-white/5">
@@ -216,10 +222,10 @@
                                 ))}
                             </div>
                             <div className="space-y-6 mb-8">
-                                <input placeholder="Tu Nombre" className="w-full border border-white/10 p-5 rounded-2xl font-black bg-white/5 outline-none focus:border-[#d4af37] text-white" onChange={e=>setClient({...client, name:e.target.value})} />
+                                <input placeholder="Nombre Completo" className="w-full border border-white/10 p-5 rounded-2xl font-black bg-white/5 outline-none focus:border-[#d4af37] text-white" onChange={e=>setClient({...client, name:e.target.value})} />
                                 <div className="flex gap-2">
                                     {['Domicilio', 'Mesa'].map(t => (
-                                        <button key={t} onClick={()=>setClient({...client, type:t})} className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase ${client.type === t ? 'gold-bg' : 'bg-white/5 text-zinc-500'}`}>{t}</button>
+                                        <button key={t} onClick={()=>setClient({...client, type:t})} className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase transition-all ${client.type === t ? 'gold-bg' : 'bg-white/5 text-zinc-500'}`}>{t}</button>
                                     ))}
                                 </div>
                                 {client.type==='Mesa' ? <input placeholder="Mesa #" type="number" className="w-full border border-white/10 p-5 rounded-2xl font-black bg-white/5" onChange={e=>setClient({...client, table:e.target.value})} /> : 
@@ -264,33 +270,41 @@
     const AdminPanel = ({ config, menuData, orders, onExit, audioRef }) => {
         const [tab, setTab] = useState('inbox');
         const [editing, setEditing] = useState(null);
-        const [load, setLoad] = useState(false);
+        const [isAudioUnlocked, setIsAudioUnlocked] = useState(false);
         const save = (p, d) => db.ref(p).set(d);
 
-        const unlockAudio = () => { if(config.sound) { audioRef.current.src = config.sound; audioRef.current.play().then(()=>audioRef.current.pause()).catch(()=>{}); } };
+        // FUNCIÓN CLAVE PARA DESBLOQUEAR EL NAVEGADOR
+        const unlockAudio = () => {
+            if(!isAudioUnlocked && config.sound) {
+                audioRef.current.src = config.sound;
+                audioRef.current.play().then(() => {
+                    audioRef.current.pause(); // Suena y pausa de inmediato para pedir permiso
+                    setIsAudioUnlocked(true);
+                }).catch(() => {});
+            }
+        };
 
         const up = async (e, type) => {
             const f = e.target.files[0]; if(!f) return;
-            setLoad(true);
-            try {
-                if(type === 'sound') {
-                    const r = new FileReader(); r.readAsDataURL(f);
-                    r.onload = ev => save('config/sound', ev.target.result);
-                } else {
-                    const b64 = await compress(f, type==='bg'?600:400);
-                    if(type==='bg') save('config/bg', [...(config.bg || []), b64]);
-                    if(type==='item') setEditing({...editing, img: b64});
-                }
-            } catch(err) {}
-            setLoad(false);
+            const b64 = await compress(f, type==='bg'?600:400);
+            if(type==='bg') save('config/bg', [...(config.bg || []), b64]);
+            if(type==='item') setEditing({...editing, img: b64});
         };
 
         return (
             <div className="min-h-screen admin-view p-5 pb-24 overflow-y-auto text-white" onClick={unlockAudio}>
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-black text-yellow-500 uppercase italic">ADMIN CAIFU VIP</h2>
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-black text-yellow-500 uppercase italic">ADMIN CAIFU</h2>
                     <button onClick={onExit} className="bg-red-600 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest">Salir</button>
                 </div>
+
+                {/* BOTÓN ACTIVADOR DE ALARMAS */}
+                {!isAudioUnlocked && (
+                    <div className="bg-yellow-500/20 border-2 border-yellow-500 p-4 rounded-3xl mb-6 text-center animate-pulse">
+                        <p className="text-yellow-500 font-black text-[10px] uppercase mb-2">⚠️ SISTEMA DE ALERTAS BLOQUEADO</p>
+                        <p className="text-white text-[9px] font-bold uppercase">TOCA CUALQUIER PARTE PARA ACTIVAR LA CAMPANA</p>
+                    </div>
+                )}
                 
                 <div className="flex gap-2 mb-6 bg-zinc-900 p-1.5 rounded-2xl overflow-x-auto no-scrollbar">
                     {['inbox', 'menu', 'carrusel', 'gps', 'ajustes'].map(t => (
@@ -301,21 +315,23 @@
                 {tab === 'inbox' && (
                     <div className="space-y-4">
                         <button onClick={()=>db.ref('orders').remove()} className="w-full py-2 bg-red-900/40 border border-red-500 text-red-500 font-black text-[9px] uppercase">Vaciar Inbox</button>
-                        {orders.map(o => (
-                            <div key={o.fid} className="p-4 rounded-3xl border border-zinc-800 bg-zinc-900">
-                                <div className="flex justify-between text-[10px] mb-2 font-black italic uppercase text-yellow-500"><span>{o.name}</span><span>{o.time}</span></div>
-                                <p className="text-xs mb-3 text-zinc-200 font-bold">{o.items}</p>
-                                <div className="text-[10px] bg-black/40 p-3 rounded-2xl mb-3 text-zinc-400 font-bold uppercase">Pago: {o.payment} | Mesa/Dir: {o.table || o.address}</div>
-                                <div className="flex justify-between items-center pt-3 border-t border-zinc-800"><span className="text-green-500 font-black text-lg">${o.total?.toLocaleString()}</span><button onClick={()=>db.ref(`orders/${o.fid}`).remove()} className="text-red-500"><Icons.Trash/></button></div>
-                            </div>
-                        ))}
+                        {orders.length === 0 ? <p className="text-center py-20 text-zinc-800 font-black text-xs uppercase">Sin pedidos</p> : 
+                            orders.map(o => (
+                                <div key={o.fid} className="p-4 rounded-3xl border border-zinc-800 bg-zinc-900">
+                                    <div className="flex justify-between text-[10px] mb-2 font-black italic uppercase text-yellow-500"><span>{o.name}</span><span>{o.time}</span></div>
+                                    <p className="text-xs mb-3 text-zinc-200 font-bold">{o.items}</p>
+                                    <div className="text-[10px] bg-black/40 p-3 rounded-2xl mb-3 text-zinc-400 font-bold uppercase leading-relaxed">Pago: {o.payment} | Mesa/Dir: {o.table || o.address}</div>
+                                    <div className="flex justify-between items-center pt-3 border-t border-zinc-800"><span className="text-green-500 font-black text-lg">${o.total?.toLocaleString()}</span><button onClick={()=>db.ref(`orders/${o.fid}`).remove()} className="text-red-500 p-2"><Icons.Trash/></button></div>
+                                </div>
+                            ))
+                        }
                     </div>
                 )}
 
                 {tab === 'menu' && (
                     <div className="space-y-4">
-                        <button onClick={()=>{db.ref('menu/CATEGORIA_PRUEBA').remove(); db.ref('menu/GENERAL').remove(); alert("Limpio.");}} className="w-full bg-red-600 py-2 rounded-xl font-black text-[9px] uppercase">⚠️ Borrar Datos Prueba</button>
-                        <button onClick={()=>{const c=prompt("Categoría:"); if(c) save(`menu/${c.toUpperCase()}`, [{id:Date.now(), name:"PLATO", price:0}]);}} className="w-full bg-green-600 py-3 rounded-xl font-black text-xs uppercase">+ CATEGORÍA</button>
+                        <button onClick={()=>{db.ref('menu/CATEGORIA_PRUEBA').remove(); db.ref('menu/GENERAL').remove(); alert("Limpio.");}} className="w-full bg-red-600 py-2 rounded-xl font-black text-[9px] uppercase">⚠️ Eliminar Datos Prueba</button>
+                        <button onClick={()=>{const c=prompt("Categoría:"); if(c) save(`menu/${c.toUpperCase()}`, [{id:Date.now(), name:"PLATO NUEVO", price:0}]);}} className="w-full bg-green-600 py-3 rounded-xl font-black text-xs uppercase">+ NUEVA CATEGORÍA</button>
                         {Object.keys(menuData).map(cat => (
                             <div key={cat} className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800">
                                 <div className="flex justify-between items-center mb-4 border-b border-zinc-800 pb-2"><span className="font-black text-yellow-500 text-[11px] uppercase italic">{cat}</span><button onClick={()=>db.ref(`menu/${cat}`).remove()}><Icons.Trash/></button></div>
@@ -331,10 +347,10 @@
                 {tab === 'carrusel' && (
                     <div className="space-y-4">
                         <input type="file" onChange={e=>up(e, 'bg')} id="bg-in" className="hidden" />
-                        <label htmlFor="bg-in" className="w-full bg-blue-600 py-5 rounded-3xl flex justify-center items-center font-black text-sm cursor-pointer uppercase shadow-lg shadow-blue-900/20 tracking-widest"><Icons.Camera/>&nbsp;SUBIR FONDO</label>
+                        <label htmlFor="bg-in" className="w-full bg-blue-600 py-5 rounded-3xl flex justify-center items-center font-black text-sm cursor-pointer uppercase shadow-lg shadow-blue-900/20"><Icons.Camera/>&nbsp;SUBIR FONDO</label>
                         <div className="grid grid-cols-2 gap-4">
                             {config.bg && config.bg.map((img, i) => (
-                                <div key={i} className="relative aspect-9-16 rounded-2xl overflow-hidden border-2 border-zinc-800"><img src={img} className="w-full h-full object-cover" /><button onClick={()=>{const n=[...config.bg]; n.splice(i,1); save('config/bg', n)}} className="absolute top-2 right-2 bg-red-600 p-2 rounded-full shadow-lg"><Icons.Trash/></button></div>
+                                <div key={i} className="relative aspect-9-16 rounded-2xl overflow-hidden border-2 border-zinc-800 shadow-xl"><img src={img} className="w-full h-full object-cover" /><button onClick={()=>{const n=[...config.bg]; n.splice(i,1); save('config/bg', n)}} className="absolute top-2 right-2 bg-red-600 p-2 rounded-full shadow-lg"><Icons.Trash/></button></div>
                             ))}
                         </div>
                     </div>
@@ -342,7 +358,7 @@
 
                 {tab === 'gps' && (
                     <div className="space-y-4">
-                        <button onClick={()=>navigator.geolocation.getCurrentPosition(p=>save('config/loc', {lat:p.coords.latitude, lng:p.coords.longitude}), null, {enableHighAccuracy:true})} className="w-full bg-blue-600 py-4 rounded-2xl font-black text-xs shadow-lg uppercase tracking-widest">📍 FIJAR NEGOCIO AQUÍ</button>
+                        <button onClick={()=>navigator.geolocation.getCurrentPosition(p=>save('config/loc', {lat:p.coords.latitude, lng:p.coords.longitude}), null, {enableHighAccuracy:true})} className="w-full bg-blue-600 py-4 rounded-2xl font-black text-xs shadow-lg uppercase">📍 MARCAR NEGOCIO AQUÍ</button>
                         <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800">
                             <div className="flex justify-between items-center mb-4 uppercase text-[10px] font-black italic text-zinc-500"><span>Tarifas</span><button onClick={()=>save('config/zones', [...(config.zones || []), {id:Date.now(), label:"Zona", km:3, price:3000}])} className="bg-green-600 w-8 h-8 rounded-full shadow-lg text-white font-bold">+</button></div>
                             {(config.zones || []).map((z, i) => (
@@ -361,10 +377,16 @@
 
                 {tab === 'ajustes' && (
                     <div className="space-y-4">
-                        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 shadow-xl">
-                            <label className="text-[10px] font-black text-zinc-500 uppercase block mb-3 italic tracking-widest">Tono Alerta (MP3)</label>
-                            <input type="file" accept="audio/*" onChange={e=>up(e, 'sound')} className="text-[10px] mb-3 bg-zinc-800 p-3 rounded-2xl w-full border border-zinc-700" />
-                            {config.sound && <div className="mt-2"><button onClick={() => { audioRef.current.src = config.sound; audioRef.current.play(); }} className="bg-white/10 px-4 py-2 rounded-lg text-[9px] font-bold uppercase">Probar Sonido</button></div>}
+                        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 shadow-xl text-center">
+                            <label className="text-[10px] font-black text-zinc-500 uppercase block mb-3 italic tracking-widest">Tono de Notificación (MP3)</label>
+                            <input type="file" accept="audio/*" onChange={e => {
+                                const f = e.target.files[0];
+                                const r = new FileReader(); r.readAsDataURL(f);
+                                r.onload = ev => save('config/sound', ev.target.result);
+                            }} className="text-[10px] mb-4 bg-zinc-800 p-3 rounded-2xl w-full border border-zinc-700" />
+                            {config.sound && (
+                                <button onClick={() => { audioRef.current.src = config.sound; audioRef.current.play(); }} className="gold-bg px-6 py-2 rounded-xl text-[9px] font-black uppercase">Prueba de Volumen 🔊</button>
+                            )}
                         </div>
                     </div>
                 )}
@@ -372,14 +394,13 @@
                 {editing && (
                     <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-6 z-[300] animate-fade-in">
                         <div className="bg-white text-zinc-900 p-6 rounded-[3rem] w-full max-w-sm space-y-4 shadow-2xl overflow-y-auto max-h-[90vh] no-scrollbar">
-                            <h3 className="font-black uppercase text-sm italic text-center text-zinc-400">Datos del Plato</h3>
                             <div className="w-full aspect-square bg-zinc-100 rounded-[2rem] overflow-hidden relative border-2 border-dashed flex items-center justify-center">
                                 {editing.img ? <img src={editing.img} className="w-full h-full object-cover" /> : <Icons.Camera/>}
                                 <input type="file" onChange={e=>up(e, 'item')} className="absolute inset-0 opacity-0" />
                             </div>
                             <input placeholder="Nombre" value={editing.name} onChange={e=>setEditing({...editing, name:e.target.value})} className="w-full bg-zinc-50 p-4 rounded-2xl font-black outline-none border focus:border-yellow-400" />
-                            <textarea placeholder="Descripción..." value={editing.desc} onChange={e=>setEditing({...editing, desc:e.target.value})} className="w-full bg-zinc-50 p-4 rounded-2xl font-bold text-xs h-20 outline-none border" />
-                            <input placeholder="Precio" type="number" value={editing.price} onChange={e=>setEditing({...editing, price:parseInt(e.target.value)})} className="w-full bg-zinc-50 p-4 rounded-2xl font-black outline-none border" />
+                            <textarea placeholder="Descripción..." value={editing.desc} onChange={e=>setEditing({...editing, desc:e.target.value})} className="w-full bg-zinc-50 p-4 rounded-2xl font-bold text-xs h-20 outline-none border focus:border-yellow-400" />
+                            <input placeholder="Precio" type="number" value={editing.price} onChange={e=>setEditing({...editing, price:parseInt(e.target.value)})} className="w-full bg-zinc-50 p-4 rounded-2xl font-black outline-none border focus:border-yellow-400" />
                             <div className="flex gap-2">
                                 <button onClick={()=>setEditing(null)} className="flex-1 py-4 font-black text-zinc-400 uppercase text-[10px]">Cerrar</button>
                                 <button onClick={()=>{
@@ -392,7 +413,6 @@
                         </div>
                     </div>
                 )}
-                {load && <div className="fixed inset-0 bg-black/90 z-[400] flex items-center justify-center font-black text-yellow-500 animate-pulse italic uppercase tracking-widest">Sincronizando...</div>}
             </div>
         );
     };
