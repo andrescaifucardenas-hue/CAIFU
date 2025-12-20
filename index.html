@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CAIFU CLOUD PRO v450</title>
+    <title>CAIFU MASTER v460</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; margin: 0; overflow-x: hidden; }
@@ -19,6 +21,7 @@
         .carousel-slide.active { opacity: 0.5; }
         .bg-overlay { position: absolute; inset: 0; background: linear-gradient(to top, black, transparent, rgba(0,0,0,0.8)); z-index: 5; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+        .aspect-9-16 { aspect-ratio: 9 / 16; }
     </style>
 </head>
 <body>
@@ -31,6 +34,7 @@
 <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
+    // CREDENCIALES
     const firebaseConfig = {
         apiKey: "AIzaSyCoDJZtsafs3Nm8GlCz7XaOt_H_iRaGs5M",
         authDomain: "caifu-8d229.firebaseapp.com",
@@ -62,7 +66,7 @@
                     const c = document.createElement('canvas');
                     const s = size / img.width; c.width = size; c.height = img.height * s;
                     c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-                    res(c.toDataURL('image/jpeg', 0.25));
+                    res(c.toDataURL('image/jpeg', 0.3));
                 }
             }
         });
@@ -77,8 +81,8 @@
         const [cart, setCart] = useState([]);
         const [isCartOpen, setIsCartOpen] = useState(false);
         const [client, setClient] = useState({ name: "", address: "", notes: "", payment: "Efectivo", type: "Domicilio", table: "" });
-        const [deliveryPrice, setDeliveryPrice] = useState(null);
-        const [loadingLoc, setLoadingLoc] = useState(false);
+        const [delivery, setDelivery] = useState(null);
+        
         const audioRef = useRef(new Audio());
 
         useEffect(() => {
@@ -87,39 +91,30 @@
             db.ref('orders').on('value', s => {
                 if(s.exists()){
                     const d = s.val();
-                    const list = Object.keys(d).map(k => ({...d[k], fid: k})).reverse();
-                    setOrders(list);
+                    setOrders(Object.keys(d).map(k => ({...d[k], fid: k})).reverse());
                     if(isAdmin && config.sound) { audioRef.current.src = config.sound; audioRef.current.play().catch(()=>{}); }
                 } else setOrders([]);
             });
             setTimeout(() => document.getElementById('master-loader').style.display='none', 1000);
-        }, [isAdmin]);
-
-        const addToCart = (i) => {
-            setCart(prev => {
-                const ex = prev.find(x => x.id === i.id);
-                if(ex) return prev.map(x => x.id === i.id ? {...x, qty: x.qty + 1} : x);
-                return [...prev, {...i, qty: 1}];
-            });
-        };
+        }, [isAdmin, config.sound]);
 
         const handleSendOrder = () => {
-            const total = cart.reduce((a,b)=>a+(b.price*b.qty),0) + (client.type==='Domicilio'?(Number(deliveryPrice)||0):0);
-            const data = { ...client, items: cart.map(i=>`${i.qty}x ${i.name}`).join(', '), total, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}), date: new Date().toLocaleDateString() };
+            const total = cart.reduce((a,b)=>a+(b.price*b.qty),0) + (client.type==='Domicilio'?(Number(delivery)||0):0);
+            const data = { ...client, items: cart.map(i=>`${i.qty}x ${i.name}`).join(', '), total, time: new Date().toLocaleTimeString(), date: new Date().toLocaleDateString() };
             db.ref('orders').push(data);
-            setCart([]); setIsCartOpen(false); alert("Pedido Enviado!");
+            setCart([]); setIsCartOpen(false); alert("¡Pedido Enviado!");
         };
 
         if(isAdmin) return <AdminPanel config={config} menuData={menuData} orders={orders} onExit={()=>setIsAdmin(false)} />;
 
         return (
-            <div className="min-h-screen bg-white">
+            <div className="min-h-screen bg-white text-zinc-900">
                 {view === 'home' ? (
                     <div className="h-screen bg-black flex flex-col justify-between p-10 relative overflow-hidden text-white animate-fade">
-                        <div className="absolute inset-0 z-0">
-                            {config.bg && config.bg.map((img, i) => (
+                        <div className="carousel-container">
+                            {config.bg && config.bg.length > 0 ? config.bg.map((img, i) => (
                                 <div key={i} className={`carousel-slide ${i === 0 ? 'active' : ''}`} style={{ backgroundImage: `url(${img})` }}></div>
-                            ))}
+                            )) : <div className="carousel-slide active bg-zinc-900"></div>}
                             <div className="bg-overlay"></div>
                         </div>
                         <div className="z-10 text-center pt-10">
@@ -130,14 +125,14 @@
                 ) : (
                     <div className="animate-fade">
                         <header className="sticky top-0 bg-white/95 backdrop-blur-xl p-5 border-b flex justify-between items-center z-50">
-                            <button onClick={()=>setView('home')} className="p-2 bg-zinc-100 rounded-full text-zinc-900"><Icons.Home/></button>
+                            <button onClick={()=>setView('home')} className="p-2 bg-zinc-100 rounded-full"><Icons.Home/></button>
                             <span className="font-black italic uppercase text-lg">MENU CAIFU</span>
                             <button onClick={()=>setIsCartOpen(true)} className="relative p-2 bg-zinc-900 text-white rounded-full">
                                 <Icons.Cart/>
                                 {cart.length > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-black">{cart.reduce((a,b)=>a+b.qty,0)}</span>}
                             </button>
                         </header>
-                        <main className="p-6 space-y-12 pb-24 text-zinc-900">
+                        <main className="p-6 space-y-12 pb-24">
                             {Object.keys(menuData).map(cat => (
                                 <div key={cat}>
                                     <h2 className="text-3xl font-black border-l-[10px] border-yellow-400 pl-4 mb-8 uppercase italic">{cat}</h2>
@@ -165,13 +160,13 @@
                 )}
                 {isCartOpen && (
                     <div className="fixed inset-0 bg-black/60 z-[100] flex items-end animate-fade">
-                        <div className="bg-white w-full rounded-t-[3.5rem] p-10 max-h-[96vh] overflow-y-auto no-scrollbar shadow-2xl text-zinc-900">
+                        <div className="bg-white w-full rounded-t-[3.5rem] p-10 max-h-[96vh] overflow-y-auto no-scrollbar shadow-2xl">
                             <div className="flex justify-between items-center mb-8">
                                 <h2 className="text-4xl font-black italic uppercase">ORDEN</h2>
                                 <button onClick={()=>setIsCartOpen(false)} className="bg-zinc-100 p-2 rounded-full">✕</button>
                             </div>
                             <div className="space-y-3 mb-8 bg-zinc-50 p-4 rounded-[2rem] border">
-                                {cart.length === 0 ? <p className="text-center py-6 font-bold text-zinc-400 uppercase">Vacío</p> : 
+                                {cart.length === 0 ? <p className="text-center py-4 font-bold text-zinc-400 uppercase">Vacío</p> : 
                                     cart.map(i => (
                                         <div key={i.id} className="flex justify-between items-center border-b last:border-0 pb-3 mt-2">
                                             <div className="flex flex-col"><span className="font-black text-xs uppercase italic">{i.name}</span><span className="text-[10px] text-red-600 font-black">${(i.price*i.qty).toLocaleString()}</span></div>
@@ -194,11 +189,11 @@
                                 {client.type==='Mesa' ? <input placeholder="Mesa #" type="number" className="w-full border-2 p-5 rounded-2xl font-black bg-zinc-50" onChange={e=>setClient({...client, table:e.target.value})} /> : 
                                     <div className="space-y-4">
                                         <input placeholder="Dirección Exacta" className="w-full border-2 p-5 rounded-2xl font-black bg-zinc-50" onChange={e=>setClient({...client, address:e.target.value})} />
-                                        <button onClick={()=>setDeliveryPrice(3000)} className="w-full bg-yellow-400 py-4 rounded-2xl font-black uppercase text-[10px]">📍 CALCULAR DOMICILIO</button>
+                                        <button onClick={()=>setDelivery(3000)} className="w-full bg-yellow-400 text-black py-4 rounded-2xl font-black uppercase text-[10px] shadow-lg">📍 CALCULAR DOMICILIO</button>
                                     </div>
                                 }
                                 <div className="flex justify-between text-3xl font-black pt-8 border-t-2 border-dashed border-zinc-100 italic">
-                                    <span>TOTAL</span><span className="text-red-600">${(cart.reduce((a,b)=>a+(b.price*b.qty),0) + (client.type==='Domicilio'?(Number(deliveryPrice)||0):0)).toLocaleString()}</span>
+                                    <span>TOTAL</span><span className="text-red-600">${(cart.reduce((a,b)=>a+(b.price*b.qty),0) + (client.type==='Domicilio'?(Number(delivery)||0):0)).toLocaleString()}</span>
                                 </div>
                                 <button onClick={handleSendOrder} disabled={!client.name || cart.length===0} className="w-full py-6 rounded-full bg-green-500 text-white font-black text-xl shadow-2xl">ENVIAR PEDIDO</button>
                             </div>
@@ -228,7 +223,7 @@
                     if(type==='bg') save('config/bg', [...(config.bg || []), b64]);
                     if(type==='item') setEditing({...editing, img: b64});
                 }
-            } catch(err) {}
+            } catch(err) { alert("Error al subir archivo"); }
             setLoad(false);
             e.target.value = null;
         };
@@ -237,35 +232,43 @@
             <div className="min-h-screen admin-view p-5 pb-24 overflow-y-auto animate-fade">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xl font-black text-yellow-500 italic uppercase">ADMIN CAIFU</h2>
-                    <button onClick={onExit} className="bg-red-600 px-4 py-1.5 rounded-full text-[10px] font-bold">SALIR</button>
+                    <button onClick={onExit} className="bg-red-600 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase">Salir</button>
                 </div>
-                <div className="flex gap-2 mb-6 bg-zinc-900 p-1.5 rounded-2xl overflow-x-auto no-scrollbar text-white">
+                
+                <div className="flex gap-2 mb-6 bg-zinc-900 p-1.5 rounded-2xl overflow-x-auto no-scrollbar">
                     {['inbox', 'menu', 'carrusel', 'gps', 'ajustes'].map(t => (
-                        <button key={t} onClick={()=>setTab(t)} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase whitespace-nowrap ${tab===t?'bg-yellow-500 text-black':'text-zinc-500'}`}>{t}</button>
+                        <button key={t} onClick={()=>setTab(t)} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase whitespace-nowrap ${tab===t?'bg-yellow-500 text-black shadow-lg':'text-zinc-500'}`}>{t}</button>
                     ))}
                 </div>
 
                 {tab === 'inbox' && (
-                    <div className="space-y-4">
-                        <div className="flex justify-between text-[10px] font-black uppercase text-zinc-600"><span>Pedidos</span><button onClick={()=>db.ref('orders').remove()}>Vaciar</button></div>
-                        {orders.map(o => (
-                            <div key={o.fid} className="p-4 rounded-3xl border border-zinc-800 bg-zinc-900">
-                                <div className="flex justify-between text-[10px] mb-2 font-black italic uppercase text-yellow-500"><span>{o.name} ({o.type})</span><span>{o.time} - {o.date}</span></div>
-                                <p className="text-xs mb-3 text-zinc-200">{o.items}</p>
-                                <div className="text-[10px] bg-black/40 p-3 rounded-2xl mb-3 text-zinc-400 font-bold uppercase">{o.type==='Mesa' ? `Mesa: ${o.table}` : `Dir: ${o.address}`} <br/> Pago: {o.payment} | Notas: {o.notes || '---'}</div>
-                                <div className="flex justify-between items-center border-t border-zinc-800 pt-3"><span className="text-green-500 font-black text-lg">${o.total?.toLocaleString()}</span><button onClick={()=>db.ref(`orders/${o.fid}`).remove()} className="text-red-500 p-2"><Icons.Trash/></button></div>
-                            </div>
-                        ))}
+                    <div className="space-y-4 animate-fade">
+                        <div className="flex justify-between text-[10px] font-black uppercase text-zinc-600"><span>Pedidos Recibidos</span><button onClick={()=>db.ref('orders').remove()} className="text-red-500">Vaciar Todo</button></div>
+                        {orders.length === 0 ? <p className="text-center py-20 text-zinc-800 font-bold uppercase text-xs tracking-widest">Sin datos</p> : 
+                            orders.map(o => (
+                                <div key={o.fid} className="p-4 rounded-3xl border border-zinc-800 bg-zinc-900">
+                                    <div className="flex justify-between text-[10px] mb-2 font-black italic uppercase text-yellow-500"><span>{o.name} ({o.type})</span><span>{o.time} - {o.date}</span></div>
+                                    <p className="text-xs mb-3 text-zinc-200">{o.items}</p>
+                                    <div className="text-[10px] bg-black/40 p-3 rounded-2xl mb-3 text-zinc-400 font-bold uppercase leading-relaxed">
+                                        {o.type==='Mesa' ? `Mesa: ${o.table}` : `Dirección: ${o.address}`} <br/> Pago: {o.payment} | Notas: {o.notes || '---'}
+                                    </div>
+                                    <div className="flex justify-between items-center border-t border-zinc-800 pt-3">
+                                        <span className="text-green-500 font-black text-lg">${o.total?.toLocaleString()}</span>
+                                        <button onClick={()=>db.ref(`orders/${o.fid}`).remove()} className="text-red-500 p-2 active:scale-75 transition"><Icons.Trash/></button>
+                                    </div>
+                                </div>
+                            ))
+                        }
                     </div>
                 )}
 
                 {tab === 'menu' && (
-                    <div className="space-y-4">
-                        <button onClick={()=>{const c=prompt("Categoría:"); if(c) save(`menu/${c}`, [])}} className="w-full bg-green-600 py-3 rounded-xl font-black text-xs uppercase">+ CATEGORÍA</button>
+                    <div className="space-y-4 animate-fade">
+                        <button onClick={()=>{const c=prompt("Categoría:"); if(c) save(`menu/${c}`, [])}} className="w-full bg-green-600 py-3 rounded-xl font-black text-xs uppercase shadow-lg shadow-green-900/20">+ CATEGORÍA</button>
                         {Object.keys(menuData).map(cat => (
                             <div key={cat} className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800">
                                 <div className="flex justify-between items-center mb-4 border-b border-zinc-800 pb-2"><span className="font-black text-yellow-500 text-[11px] uppercase italic">{cat}</span><button onClick={()=>db.ref(`menu/${cat}`).remove()}><Icons.Trash/></button></div>
-                                <button onClick={()=>setEditing({cat, name:"", desc:"", price:0, img:""})} className="w-full bg-zinc-800 py-2.5 rounded-xl text-[9px] font-black uppercase mb-3">+ PLATO</button>
+                                <button onClick={()=>setEditing({cat, name:"", desc:"", price:0, img:""})} className="w-full bg-zinc-800 py-2.5 rounded-xl text-[9px] font-black uppercase mb-3 border border-zinc-700">+ PLATO</button>
                                 {menuData[cat].map(i => (
                                     <div key={i.id} className="flex justify-between items-center py-2 px-3 bg-zinc-800/20 rounded-xl text-xs mb-1"><span>{i.name}</span><button onClick={()=>setEditing({...i, cat})} className="text-blue-400 font-black text-[9px]">EDITAR</button></div>
                                 ))}
@@ -275,34 +278,34 @@
                 )}
 
                 {tab === 'carrusel' && (
-                    <div className="space-y-4">
+                    <div className="space-y-4 animate-fade">
                         <input type="file" onChange={e=>up(e, 'bg')} id="bg-in" className="hidden" />
-                        <label htmlFor="bg-in" className="w-full bg-blue-600 py-5 rounded-3xl flex justify-center items-center font-black text-sm cursor-pointer uppercase tracking-widest">Subir Foto Fondo</label>
+                        <label htmlFor="bg-in" className="w-full bg-blue-600 py-5 rounded-3xl flex justify-center items-center font-black text-sm cursor-pointer uppercase shadow-lg shadow-blue-900/20"><Icons.Camera/>&nbsp;Subir Foto Fondo (9:16)</label>
                         <div className="grid grid-cols-2 gap-4">
                             {config.bg && config.bg.map((img, i) => (
-                                <div key={i} className="relative aspect-[9/16] rounded-2xl overflow-hidden border-2 border-zinc-800"><img src={img} className="w-full h-full object-cover" /><button onClick={()=>{const n=[...config.bg]; n.splice(i,1); save('config/bg', n)}} className="absolute top-2 right-2 bg-red-600 p-2 rounded-full"><Icons.Trash/></button></div>
+                                <div key={i} className="relative aspect-9-16 rounded-2xl overflow-hidden border-2 border-zinc-800 shadow-xl"><img src={img} className="w-full h-full object-cover" /><button onClick={()=>{const n=[...config.bg]; n.splice(i,1); save('config/bg', n)}} className="absolute top-2 right-2 bg-red-600 p-2 rounded-full shadow-lg"><Icons.Trash/></button></div>
                             ))}
                         </div>
                     </div>
                 )}
 
                 {tab === 'gps' && (
-                    <div className="space-y-4">
+                    <div className="space-y-4 animate-fade">
                         <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 text-center">
-                            <h3 className="text-[10px] font-black mb-4 uppercase text-yellow-500 italic">Punto Local</h3>
-                            <button onClick={()=>navigator.geolocation.getCurrentPosition(p=>save('config/loc', {lat:p.coords.latitude, lng:p.coords.longitude}))} className="w-full bg-blue-600 py-4 rounded-2xl text-xs font-black shadow-lg">📍 FIJAR NEGOCIO AQUÍ</button>
-                            <div className="mt-4 text-[9px] font-black uppercase text-zinc-500">Lat: {config.loc?.lat.toFixed(5)} | Lng: {config.loc?.lng.toFixed(5)}</div>
+                            <h3 className="text-[10px] font-black mb-4 uppercase text-yellow-500 italic">Ubicación del Local</h3>
+                            <button onClick={()=>navigator.geolocation.getCurrentPosition(p=>save('config/loc', {lat:p.coords.latitude, lng:p.coords.longitude}))} className="w-full bg-blue-600 py-4 rounded-2xl text-xs font-black shadow-lg">📍 MARCAR MI NEGOCIO AQUÍ</button>
+                            <div className="mt-4 text-[9px] font-black uppercase text-zinc-500 tracking-widest">Lat: {config.loc?.lat.toFixed(5)} | Lng: {config.loc?.lng.toFixed(5)}</div>
                         </div>
                         <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800">
-                            <div className="flex justify-between items-center mb-4 uppercase text-[10px] font-black italic"><span>Tarifas</span><button onClick={()=>save('config/zones', [...(config.zones || []), {id:Date.now(), label:"Zona", km:3, price:3000}])} className="bg-green-600 w-8 h-8 rounded-full shadow-lg">+</button></div>
+                            <div className="flex justify-between items-center mb-4 uppercase text-[10px] font-black italic"><span>Tarifas Domicilio</span><button onClick={()=>save('config/zones', [...(config.zones || []), {id:Date.now(), label:"Zona", km:3, price:3000}])} className="bg-green-600 w-8 h-8 rounded-full shadow-lg text-white font-bold">+</button></div>
                             {(config.zones || []).map((z, i) => (
                                 <div key={z.id} className="bg-zinc-800 p-4 rounded-2xl mb-3 border border-zinc-700">
-                                    <input value={z.label} onChange={e=>{const n=[...config.zones]; n[i].label=e.target.value; save('config/zones', n)}} className="bg-transparent font-black uppercase text-xs w-full mb-3 outline-none border-b border-zinc-700" />
-                                    <div className="grid grid-cols-2 gap-4 text-[8px] uppercase">
-                                        <div>Km Max <input type="number" value={z.km} onChange={e=>{const n=[...config.zones]; n[i].km=parseFloat(e.target.value); save('config/zones', n)}} className="w-full bg-zinc-700 p-2 rounded-xl text-xs" /></div>
-                                        <div>Costo $ <input type="number" value={z.price} onChange={e=>{const n=[...config.zones]; n[i].price=parseInt(e.target.value); save('config/zones', n)}} className="w-full bg-zinc-700 p-2 rounded-xl text-xs" /></div>
+                                    <input value={z.label} onChange={e=>{const n=[...config.zones]; n[i].label=e.target.value; save('config/zones', n)}} className="bg-transparent font-black uppercase text-xs w-full mb-3 outline-none border-b border-zinc-700 pb-1" />
+                                    <div className="grid grid-cols-2 gap-4 text-[8px] uppercase font-bold text-zinc-500 tracking-tighter">
+                                        <div>Km Máximo <input type="number" value={z.km} onChange={e=>{const n=[...config.zones]; n[i].km=parseFloat(e.target.value); save('config/zones', n)}} className="w-full bg-zinc-700 p-2 rounded-xl text-xs text-white" /></div>
+                                        <div>Precio $ <input type="number" value={z.price} onChange={e=>{const n=[...config.zones]; n[i].price=parseInt(e.target.value); save('config/zones', n)}} className="w-full bg-zinc-700 p-2 rounded-xl text-xs text-white" /></div>
                                     </div>
-                                    <button onClick={()=>save('config/zones', config.zones.filter(x=>x.id!==z.id))} className="text-red-500 text-[8px] mt-4 w-full text-right font-black uppercase">Borrar</button>
+                                    <button onClick={()=>save('config/zones', config.zones.filter(x=>x.id!==z.id))} className="text-red-500 text-[8px] mt-4 w-full text-right font-black uppercase italic">Eliminar Zona</button>
                                 </div>
                             ))}
                         </div>
@@ -310,30 +313,30 @@
                 )}
 
                 {tab === 'ajustes' && (
-                    <div className="space-y-4">
+                    <div className="space-y-4 animate-fade">
                         <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800">
-                            <label className="text-[10px] font-black text-zinc-500 uppercase block mb-2">PIN ADMIN</label>
-                            <input value={config.pin} onChange={e=>save('config/pin', e.target.value)} className="w-full bg-zinc-800 p-4 rounded-2xl font-black tracking-[0.4em] outline-none" />
+                            <label className="text-[10px] font-black text-zinc-500 uppercase block mb-2 tracking-widest">PIN de Acceso</label>
+                            <input value={config.pin} onChange={e=>save('config/pin', e.target.value)} className="w-full bg-zinc-800 p-4 rounded-2xl font-black tracking-[0.4em] outline-none border border-zinc-700 text-white focus:border-yellow-500 transition" />
                         </div>
-                        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800">
-                            <label className="text-[10px] font-black text-zinc-500 uppercase block mb-3">Tono Alerta (MP3)</label>
-                            <input type="file" accept="audio/*" onChange={e=>up(e, 'sound')} className="text-[10px] mb-3 bg-zinc-800 p-3 rounded-2xl w-full" />
+                        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 shadow-xl">
+                            <label className="text-[10px] font-black text-zinc-500 uppercase block mb-3 italic tracking-widest">Tono de Notificación (MP3)</label>
+                            <input type="file" accept="audio/*" onChange={e=>up(e, 'sound')} className="text-[10px] mb-3 bg-zinc-800 p-3 rounded-2xl w-full border border-zinc-700" />
                             {config.sound && <audio src={config.sound} controls className="w-full h-8 mt-2 opacity-30" />}
                         </div>
                     </div>
                 )}
 
                 {editing && (
-                    <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-6 z-[300]">
+                    <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-6 z-[300] animate-fade">
                         <div className="bg-white text-zinc-900 p-6 rounded-[3rem] w-full max-w-sm space-y-4 shadow-2xl overflow-y-auto max-h-[90vh] no-scrollbar">
-                            <h3 className="font-black uppercase text-sm italic text-center">Editar Producto</h3>
+                            <h3 className="font-black uppercase text-sm italic text-center text-zinc-400">Datos del Plato</h3>
                             <div className="w-full aspect-square bg-zinc-100 rounded-[2rem] overflow-hidden relative border-2 border-dashed flex items-center justify-center">
                                 {editing.img ? <img src={editing.img} className="w-full h-full object-cover" /> : <Icons.Camera/>}
                                 <input type="file" onChange={e=>up(e, 'item')} className="absolute inset-0 opacity-0" />
                             </div>
-                            <input placeholder="Nombre" value={editing.name} onChange={e=>setEditing({...editing, name:e.target.value})} className="w-full bg-zinc-50 p-4 rounded-2xl font-black text-sm outline-none border" />
-                            <textarea placeholder="Descripción" value={editing.desc} onChange={e=>setEditing({...editing, desc:e.target.value})} className="w-full bg-zinc-50 p-4 rounded-2xl font-bold text-xs h-20 outline-none border" />
-                            <input placeholder="Precio $" type="number" value={editing.price} onChange={e=>setEditing({...editing, price:parseInt(e.target.value)})} className="w-full bg-zinc-50 p-4 rounded-2xl font-black text-sm outline-none border" />
+                            <input placeholder="Nombre del plato" value={editing.name} onChange={e=>setEditing({...editing, name:e.target.value})} className="w-full bg-zinc-50 p-4 rounded-2xl font-black outline-none border focus:border-yellow-400" />
+                            <textarea placeholder="Descripción del plato..." value={editing.desc} onChange={e=>setEditing({...editing, desc:e.target.value})} className="w-full bg-zinc-50 p-4 rounded-2xl font-bold text-xs h-20 outline-none border focus:border-yellow-400" />
+                            <input placeholder="Precio $" type="number" value={editing.price} onChange={e=>setEditing({...editing, price:parseInt(e.target.value)})} className="w-full bg-zinc-50 p-4 rounded-2xl font-black outline-none border focus:border-yellow-400" />
                             <div className="flex gap-2">
                                 <button onClick={()=>setEditing(null)} className="flex-1 py-4 font-black text-zinc-400 uppercase text-[10px]">Cerrar</button>
                                 <button onClick={()=>{
@@ -341,17 +344,18 @@
                                     if(editing.id) m[editing.cat] = m[editing.cat].map(i => i.id === editing.id ? editing : i);
                                     else m[editing.cat].push({...editing, id: Date.now()});
                                     save('menu', m); setEditing(null);
-                                }} className="flex-1 bg-yellow-400 py-4 rounded-3xl font-black uppercase text-[10px] shadow-lg">Guardar</button>
+                                }} className="flex-1 bg-yellow-400 py-4 rounded-3xl font-black uppercase text-[10px] shadow-lg shadow-yellow-100 active:scale-95 transition">Guardar</button>
                             </div>
                         </div>
                     </div>
                 )}
-                {load && <div className="fixed inset-0 bg-black/90 z-[400] flex items-center justify-center font-black text-yellow-500 animate-pulse italic uppercase">ENVIANDO A LA NUBE...</div>}
+                {load && <div className="fixed inset-0 bg-black/90 z-[400] flex items-center justify-center font-black text-yellow-500 animate-pulse italic uppercase tracking-widest">Subiendo...</div>}
             </div>
         );
     };
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
 </script>
 </body>
 </html>
