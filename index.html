@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CAIFU MASTER v640</title>
+    <title>CAIFU MASTER v650</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -18,22 +18,20 @@
         .client-body { background: linear-gradient(135deg, #000000 0%, #450a0a 100%); min-height: 100vh; }
         .gold-text { color: #d4af37; }
         .gold-bg { background-color: #d4af37; color: black; }
-        .gold-border { border-color: #d4af37; }
         .admin-view { background-color: #020617; min-height: 100vh; color: white; }
         #master-loader { position: fixed; inset: 0; background: #7f1d1d; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; }
         .carousel-slide { position: absolute; inset: 0; background-size: cover; background-position: center; transition: opacity 1.5s ease; opacity: 0; z-index: 1; }
         .carousel-slide.active { opacity: 0.6; z-index: 2; }
         .bg-overlay { position: absolute; inset: 0; background: linear-gradient(to top, black, transparent, rgba(0,0,0,0.8)); z-index: 5; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
         .item-card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(212, 175, 55, 0.2); backdrop-filter: blur(10px); border-radius: 2rem; }
         .category-bar { position: sticky; top: 70px; z-index: 40; background: rgba(0,0,0,0.9); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(212, 175, 55, 0.3); }
-        .aspect-9-16 { aspect-ratio: 9 / 16; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body>
     <div id="master-loader">
         <div style="font-size: 32px; font-weight: 800; color: white; font-style: italic;">CAIFU VIP</div>
-        <div style="font-size: 10px; color: white; margin-top: 10px; letter-spacing: 2px;">SINCRONIZACIÓN TOTAL v640...</div>
+        <div style="font-size: 10px; color: white; margin-top: 10px; letter-spacing: 2px;">CALIBRANDO PRECISIÓN v650...</div>
     </div>
     <div id="root"></div>
 
@@ -92,11 +90,11 @@
             db.ref('menu').on('value', s => s.exists() && setMenuData(s.val()));
             db.ref('orders').on('value', s => {
                 const all = s.exists() ? Object.keys(s.val()).map(k => ({...s.val()[k], fid: k, status: s.val()[k].status || 'pending'})).reverse() : [];
-                const pendings = all.filter(o => o.status === 'pending').length;
-                if(isAdmin && pendings > lastPendingCount.current && config.sound) {
+                const pends = all.filter(o => o.status === 'pending').length;
+                if(isAdmin && pends > lastPendingCount.current && config.sound) {
                     audioRef.current.src = config.sound; audioRef.current.play().catch(()=>{});
                 }
-                lastPendingCount.current = pendings;
+                lastPendingCount.current = pends;
                 setOrders(all);
             });
             setTimeout(() => document.getElementById('master-loader').style.display='none', 1000);
@@ -108,6 +106,29 @@
                 return () => clearInterval(t);
             }
         }, [config.bg, view]);
+
+        const sendOrder = () => {
+            // Captura forzada de los datos actuales para evitar errores de sincronización
+            const orderData = {
+                name: client.name,
+                type: client.type,
+                table: client.type === 'Mesa' ? client.table : "",
+                address: client.type === 'Domicilio' ? client.address : "",
+                payment: client.payment,
+                notes: client.notes,
+                items: cart.map(i => `${i.qty}x ${i.name}`).join(', '),
+                total: cart.reduce((a,b)=>a+(b.price*b.qty),0) + (client.type === 'Domicilio' ? (Number(delivery) || 0) : 0),
+                status: 'pending',
+                time: new Date().toLocaleTimeString()
+            };
+
+            db.ref('orders').push(orderData);
+            setCart([]);
+            setIsCartOpen(false);
+            setClient({ name: "", address: "", notes: "", payment: "Efectivo", type: "Domicilio", table: "" });
+            setDelivery(null);
+            alert("¡Orden enviada con éxito!");
+        };
 
         if(isAdmin) return <AdminPanel config={config} menuData={menuData} orders={orders} onExit={()=>setIsAdmin(false)} audioRef={audioRef} />;
 
@@ -128,7 +149,7 @@
                     <div className="animate-fade-in text-white">
                         <header className="sticky top-0 bg-black/80 backdrop-blur-xl p-5 border-b border-white/10 flex justify-between items-center z-50">
                             <button onClick={()=>setView('home')} className="p-2 bg-white/10 rounded-full text-white"><Icons.Home/></button>
-                            <span className="font-black italic gold-text">MENU CAIFU</span>
+                            <span className="font-black italic gold-text uppercase">MENÚ VIP</span>
                             <button onClick={()=>setIsCartOpen(true)} className="relative p-2 gold-bg rounded-full">
                                 <Icons.Cart/>
                                 {cart.length > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-black">{cart.reduce((a,b)=>a+b.qty,0)}</span>}
@@ -142,7 +163,7 @@
                         <main className="p-6 space-y-12 pb-24">
                             {Object.keys(menuData).map(cat => (
                                 <div key={cat} id={cat} className="scroll-mt-32">
-                                    <h2 className="text-3xl font-black border-l-[10px] gold-border pl-4 mb-8 uppercase italic gold-text">{cat}</h2>
+                                    <h2 className="text-3xl font-black border-l-[10px] border-[#d4af37] pl-4 mb-8 uppercase italic gold-text">{cat}</h2>
                                     <div className="grid gap-6">
                                         {menuData[cat].map(i => (
                                             <div key={i.id} className="item-card p-3 flex gap-4 items-center shadow-xl">
@@ -157,7 +178,7 @@
                                                             const ex = cart.find(x => x.id === i.id);
                                                             if(ex) setCart(cart.map(x=>x.id===i.id?{...x,qty:x.qty+1}:x));
                                                             else setCart([...cart, {...i, qty:1}]);
-                                                        }} className="gold-bg p-3 rounded-2xl active:scale-90 transition"><Icons.Plus/></button>
+                                                        }} className="gold-bg p-3 rounded-2xl active:scale-90 transition shadow-lg"><Icons.Plus/></button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -185,17 +206,17 @@
                                 ))}
                             </div>
                             <div className="space-y-6">
-                                <input placeholder="Tu Nombre" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl font-black text-white outline-none focus:border-[#d4af37]" value={client.name} onChange={e=>setClient({...client, name:e.target.value})} />
+                                <input placeholder="Nombre Completo" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl font-black text-white outline-none focus:border-[#d4af37]" value={client.name} onChange={e=>setClient({...client, name:e.target.value})} />
                                 <div className="flex gap-2">
                                     {['Domicilio', 'Mesa'].map(t => (
                                         <button key={t} onClick={()=>setClient({...client, type:t})} className={`flex-1 py-4 rounded-2xl font-black ${client.type===t?'gold-bg':'bg-white/5 text-zinc-500'}`}>{t}</button>
                                     ))}
                                 </div>
                                 {client.type==='Mesa' ? (
-                                    <input placeholder="Número de Mesa" type="number" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black" value={client.table} onChange={e=>setClient({...client, table:e.target.value})} />
+                                    <input placeholder="Escribe el Número de Mesa" type="number" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black outline-none focus:border-[#d4af37]" value={client.table} onChange={e=>setClient({...client, table:e.target.value})} />
                                 ) : (
                                     <div className="space-y-4">
-                                        <input placeholder="Dirección exacta" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black outline-none" value={client.address} onChange={e=>setClient({...client, address:e.target.value})} />
+                                        <input placeholder="Dirección de Entrega" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black outline-none focus:border-[#d4af37]" value={client.address} onChange={e=>setClient({...client, address:e.target.value})} />
                                         <button onClick={()=>{
                                             setLoadingLoc(true);
                                             navigator.geolocation.getCurrentPosition(pos => {
@@ -203,8 +224,8 @@
                                                 const match = (config.zones || []).sort((a,b)=>a.km-b.km).find(z => d <= z.km);
                                                 setDelivery(match ? match.price : "Fuera de Cobertura");
                                                 setLoadingLoc(false);
-                                            }, ()=> { alert("Activa GPS"); setLoadingLoc(false); }, {enableHighAccuracy:true});
-                                        }} className="w-full gold-bg py-4 rounded-2xl font-black uppercase text-[10px]">📍 CALCULAR ENVÍO (GPS)</button>
+                                            }, ()=> { alert("Activa el GPS"); setLoadingLoc(false); }, {enableHighAccuracy:true});
+                                        }} className="w-full gold-bg py-4 rounded-2xl font-black uppercase text-[10px] shadow-lg">📍 CALCULAR ENVÍO (GPS)</button>
                                         {delivery !== null && <p className="text-center font-black gold-text text-[10px] uppercase">{typeof delivery === 'number' ? `Tarifa envío: $${delivery.toLocaleString()}` : delivery}</p>}
                                     </div>
                                 )}
@@ -213,16 +234,11 @@
                                         <button key={p} onClick={()=>setClient({...client, payment:p})} className={`flex-1 py-3 rounded-xl font-black text-[9px] ${client.payment===p?'gold-bg':'bg-white/5 text-zinc-500'}`}>{p}</button>
                                     ))}
                                 </div>
-                                <textarea placeholder="Notas extra (Ej: Sin salsas)" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white h-20" value={client.notes} onChange={e=>setClient({...client, notes:e.target.value})} />
+                                <textarea placeholder="Notas extra (Ej: Sin cebolla)" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white h-20 outline-none focus:border-[#d4af37]" value={client.notes} onChange={e=>setClient({...client, notes:e.target.value})} />
                                 <div className="flex justify-between text-4xl font-black gold-text pt-4 border-t border-dashed border-white/10 italic">
                                     <span className="text-white">TOTAL</span><span>${(cart.reduce((a,b)=>a+(b.price*b.qty),0) + (client.type==='Domicilio'?(typeof delivery==='number'?delivery:0):0)).toLocaleString()}</span>
                                 </div>
-                                <button onClick={()=>{
-                                    const totalFinal = cart.reduce((a,b)=>a+(b.price*b.qty),0) + (client.type==='Domicilio'?(Number(delivery)||0):0);
-                                    db.ref('orders').push({...client, items: cart.map(i=>`${i.qty}x ${i.name}`).join(', '), total: totalFinal, status:'pending', time: new Date().toLocaleTimeString()});
-                                    setCart([]); setIsCartOpen(false); setClient({ name: "", address: "", notes: "", payment: "Efectivo", type: "Domicilio", table: "" }); setDelivery(null);
-                                    alert("¡Pedido Enviado!");
-                                }} disabled={!client.name || (client.type==='Mesa' && !client.table) || (client.type==='Domicilio' && typeof delivery !== 'number') || cart.length === 0} className="w-full py-6 rounded-full gold-bg font-black text-xl uppercase shadow-2xl disabled:bg-zinc-800 disabled:text-zinc-600">ENVIAR PEDIDO</button>
+                                <button onClick={sendOrder} disabled={!client.name || (client.type==='Mesa' && !client.table) || (client.type==='Domicilio' && typeof delivery !== 'number') || cart.length === 0} className="w-full py-6 rounded-full gold-bg font-black text-xl uppercase shadow-2xl disabled:bg-zinc-800 disabled:text-zinc-600">ENVIAR PEDIDO</button>
                             </div>
                         </div>
                     </div>
@@ -242,28 +258,26 @@
         const compressAndSave = async (e, type) => {
             const f = e.target.files[0]; if(!f) return;
             setLoad(true);
-            const b64 = await new Promise(res => {
-                const r = new FileReader(); r.readAsDataURL(f);
-                r.onload = ev => {
-                    const img = new Image(); img.src = ev.target.result;
-                    img.onload = () => {
-                        const c = document.createElement('canvas');
-                        const s = (type==='bg'?600:400) / img.width; c.width = (type==='bg'?600:400); c.height = img.height * s;
-                        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-                        res(c.toDataURL('image/jpeg', 0.25));
-                    }
+            const r = new FileReader(); r.readAsDataURL(f);
+            r.onload = ev => {
+                const img = new Image(); img.src = ev.target.result;
+                img.onload = () => {
+                    const c = document.createElement('canvas');
+                    const s = (type==='bg'?600:400) / img.width; c.width = (type==='bg'?600:400); c.height = img.height * s;
+                    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+                    const b64 = c.toDataURL('image/jpeg', 0.25);
+                    if(type==='bg') save('config/bg', [...(config.bg || []), b64]);
+                    if(type==='item') setEditing({...editing, img: b64});
+                    setLoad(false);
                 }
-            });
-            if(type==='bg') save('config/bg', [...(config.bg || []), b64]);
-            if(type==='item') setEditing({...editing, img: b64});
-            setLoad(false);
+            }
         };
 
         if(!auth) return (
             <div className="admin-view flex flex-col items-center justify-center p-10 text-center text-white">
-                <div className="w-20 h-20 gold-bg rounded-full flex items-center justify-center mb-6 shadow-xl animate-bounce">🔊</div>
-                <h2 className="text-2xl font-black gold-text mb-8 uppercase italic tracking-tighter">Sistema de Alertas CAIFU</h2>
-                <button onClick={()=>{ if(config.sound){audioRef.current.src=config.sound; audioRef.current.play().then(()=>audioRef.current.pause());} setAuth(true); }} className="gold-bg w-full py-6 rounded-[2rem] font-black uppercase text-xl shadow-2xl">ENTRAR AL PANEL</button>
+                <div className="w-24 h-24 gold-bg rounded-full flex items-center justify-center mb-8 shadow-2xl animate-bounce">🔊</div>
+                <h2 className="text-3xl font-black gold-text mb-10 uppercase italic">ADMIN CAIFU v650</h2>
+                <button onClick={()=>{ if(config.sound){audioRef.current.src=config.sound; audioRef.current.play().then(()=>audioRef.current.pause());} setAuth(true); }} className="gold-bg w-full py-6 rounded-[2.5rem] font-black uppercase text-xl shadow-2xl">ENTRAR AL SISTEMA</button>
             </div>
         );
 
@@ -280,7 +294,6 @@
                     ))}
                 </div>
 
-                {/* TAB INBOX */}
                 {tab === 'inbox' && (
                     <div className="space-y-4">
                         {orders.filter(o=>o.status==='pending').map(o => (
@@ -299,27 +312,33 @@
                     </div>
                 )}
 
-                {/* TAB HISTORIAL */}
                 {tab === 'historial' && (
                     <div className="space-y-3">
-                        <button onClick={()=>db.ref('orders').remove()} className="w-full py-2 bg-red-900 text-red-200 text-[9px] font-black rounded-xl mb-4 uppercase">Borrar Historial</button>
+                        <button onClick={()=>db.ref('orders').remove()} className="w-full py-2 bg-red-900 text-red-200 text-[9px] font-black rounded-xl mb-6 uppercase tracking-widest">Borrar Todo el Historial</button>
                         {orders.filter(o=>o.status!=='pending').map(o => (
-                            <div key={o.fid} className="p-4 bg-zinc-900/50 rounded-2xl flex justify-between items-center border border-zinc-800 opacity-60">
-                                <div className="flex flex-col"><span className="text-[10px] font-black uppercase">{o.name}</span><span className={`text-[8px] font-black uppercase ${o.status==='done'?'text-green-500':'text-red-500'}`}>{o.status}</span></div>
-                                <span className="text-[10px] font-black text-zinc-600">{o.time}</span>
+                            <div key={o.fid} className="p-5 bg-zinc-900 rounded-3xl border border-zinc-800 opacity-80 mb-2">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className={`text-[10px] font-black uppercase ${o.status==='done'?'text-green-500':'text-red-500'}`}>{o.status==='done'?'COMPLETADO':'CANCELADO'}</span>
+                                    <span className="text-[9px] text-zinc-500">{o.time}</span>
+                                </div>
+                                <p className="text-xs font-black uppercase text-zinc-100">{o.name}</p>
+                                <p className="text-[10px] text-yellow-500 italic mt-1">{o.items}</p>
+                                <div className="flex justify-between mt-3 text-[9px] font-bold text-zinc-500 border-t border-zinc-800 pt-2">
+                                    <span>{o.type==='Mesa' ? `Mesa: ${o.table}` : 'Domicilio'}</span>
+                                    <span>Total: ${o.total?.toLocaleString()}</span>
+                                </div>
                             </div>
                         ))}
                     </div>
                 )}
 
-                {/* TAB MENU */}
                 {tab === 'menu' && (
                     <div className="space-y-4">
-                        <button onClick={()=>{const c=prompt("Nombre Categoría:"); if(c) save(`menu/${c.toUpperCase()}`, [{id:Date.now(), name:"PLATO NUEVO", price:0}]);}} className="w-full bg-green-600 py-3 rounded-xl font-black text-xs uppercase shadow-lg">+ CATEGORIA</button>
+                        <button onClick={()=>{const c=prompt("Nombre Categoría:"); if(c) save(`menu/${c.toUpperCase()}`, [{id:Date.now(), name:"PLATO NUEVO", price:0}]);}} className="w-full bg-green-600 py-3 rounded-xl font-black text-xs uppercase shadow-lg">+ NUEVA CATEGORÍA</button>
                         {Object.keys(menuData).map(cat => (
                             <div key={cat} className="p-4 bg-zinc-900 rounded-[2.5rem] border border-zinc-800 mb-4 shadow-xl">
                                 <div className="flex justify-between items-center border-b border-white/5 pb-2 mb-4"><span className="gold-text font-black text-xs uppercase italic">{cat}</span><button onClick={()=>db.ref(`menu/${cat}`).remove()} className="text-red-500"><Icons.Trash/></button></div>
-                                <button onClick={()=>setEditing({cat, name:"", desc:"", price:0})} className="w-full py-2 bg-zinc-800 rounded-xl text-[9px] font-black mb-3 border border-zinc-700">+ PLATO</button>
+                                <button onClick={()=>setEditing({cat, name:"", desc:"", price:0})} className="w-full py-2 bg-zinc-800 rounded-xl text-[9px] font-black mb-3">+ PLATO</button>
                                 {menuData[cat].map(i => (
                                     <div key={i.id} className="flex justify-between items-center text-xs py-1 border-b border-white/5 last:border-0 mb-1"><span>{i.name}</span><button onClick={()=>setEditing({...i, cat})} className="text-blue-400 font-bold">EDITAR</button></div>
                                 ))}
@@ -328,7 +347,6 @@
                     </div>
                 )}
 
-                {/* TAB CARRUSEL */}
                 {tab === 'carrusel' && (
                     <div className="space-y-4">
                         <input type="file" onChange={e=>compressAndSave(e, 'bg')} id="bg-in" className="hidden" />
@@ -341,39 +359,36 @@
                     </div>
                 )}
 
-                {/* TAB GPS */}
                 {tab === 'gps' && (
                     <div className="space-y-4">
-                        <button onClick={()=>navigator.geolocation.getCurrentPosition(p=>save('config/loc', {lat:p.coords.latitude, lng:p.coords.longitude}), null, {enableHighAccuracy:true})} className="w-full bg-blue-600 py-4 rounded-2xl font-black text-xs shadow-lg uppercase tracking-widest">📍 FIJAR LOCAL AQUÍ</button>
+                        <button onClick={()=>navigator.geolocation.getCurrentPosition(p=>save('config/loc', {lat:p.coords.latitude, lng:p.coords.longitude}), null, {enableHighAccuracy:true})} className="w-full bg-blue-600 py-4 rounded-2xl font-black text-xs shadow-lg uppercase tracking-widest">📍 MARCAR LOCAL AQUÍ</button>
                         <div className="p-5 bg-zinc-900 rounded-[2.5rem] border border-zinc-800 shadow-xl">
-                            <div className="flex justify-between items-center mb-4"><h3 className="text-[10px] font-black uppercase text-zinc-500 italic">Tarifas de Envío</h3><button onClick={()=>save('config/zones', [...(config.zones || []), {id:Date.now(), label:"Zona", km:3, price:3000}])} className="bg-green-600 w-8 h-8 rounded-full font-bold shadow-md">+</button></div>
+                            <div className="flex justify-between items-center mb-4"><h3 className="text-[10px] font-black uppercase text-zinc-500 italic">Zonas y Precios</h3><button onClick={()=>save('config/zones', [...(config.zones || []), {id:Date.now(), label:"Zona", km:3, price:3000}])} className="bg-green-600 w-8 h-8 rounded-full font-bold shadow-md">+</button></div>
                             {(config.zones || []).map((z, i) => (
                                 <div key={z.id} className="bg-zinc-800/50 p-4 rounded-3xl mb-3 border border-zinc-700">
-                                    <input value={z.label} onChange={e=>{const n=[...config.zones]; n[i].label=e.target.value; save('config/zones', n)}} className="bg-transparent font-black uppercase text-xs w-full mb-3 outline-none border-b border-zinc-700 pb-1" />
+                                    <input value={z.label} onChange={e=>{const n=[...config.zones]; n[i].label=e.target.value.toUpperCase(); save('config/zones', n)}} className="bg-transparent font-black uppercase text-xs w-full mb-3 outline-none border-b border-zinc-700 pb-1" />
                                     <div className="grid grid-cols-2 gap-4 text-[8px] uppercase font-bold text-zinc-500">
-                                        <div>Km Máx <input type="number" value={z.km} onChange={e=>{const n=[...config.zones]; n[i].km=parseFloat(e.target.value); save('config/zones', n)}} className="w-full bg-zinc-700 p-2 rounded-xl text-xs text-white border border-zinc-600" /></div>
-                                        <div>Precio $ <input type="number" value={z.price} onChange={e=>{const n=[...config.zones]; n[i].price=parseInt(e.target.value); save('config/zones', n)}} className="w-full bg-zinc-700 p-2 rounded-xl text-xs text-white border border-zinc-600" /></div>
+                                        <div>Km Máx <input type="number" value={z.km} onChange={e=>{const n=[...config.zones]; n[i].km=parseFloat(e.target.value); save('config/zones', n)}} className="w-full bg-zinc-700 p-2 rounded-xl text-xs text-white border border-zinc-600 outline-none" /></div>
+                                        <div>Precio $ <input type="number" value={z.price} onChange={e=>{const n=[...config.zones]; n[i].price=parseInt(e.target.value); save('config/zones', n)}} className="w-full bg-zinc-700 p-2 rounded-xl text-xs text-white border border-zinc-600 outline-none" /></div>
                                     </div>
-                                    <button onClick={()=>save('config/zones', config.zones.filter(x=>x.id!==z.id))} className="text-red-500 text-[8px] mt-4 w-full text-right font-black uppercase italic">Borrar</button>
+                                    <button onClick={()=>save('config/zones', config.zones.filter(x=>x.id!==z.id))} className="text-red-500 text-[8px] mt-4 w-full text-right font-black uppercase italic">Eliminar Zona</button>
                                 </div>
                             ))}
                         </div>
                     </div>
                 )}
 
-                {/* TAB AJUSTES */}
                 {tab === 'ajustes' && (
                     <div className="p-6 bg-zinc-900 rounded-[2.5rem] border border-zinc-800 shadow-xl text-center">
-                        <h3 className="text-[10px] font-black uppercase text-zinc-500 mb-6 italic tracking-widest">Sonido Notificación MP3</h3>
+                        <h3 className="text-[10px] font-black uppercase text-zinc-500 mb-6 italic tracking-widest">Alarma de Pedidos (MP3)</h3>
                         <input type="file" accept="audio/*" onChange={e=>{
                             const r = new FileReader(); r.readAsDataURL(e.target.files[0]);
                             r.onload = ev => save('config/sound', ev.target.result);
                         }} className="text-[10px] bg-zinc-800 p-4 rounded-2xl w-full border border-zinc-700 mb-6" />
-                        {config.sound && <button onClick={()=>{audioRef.current.src=config.sound; audioRef.current.play();}} className="gold-bg w-full py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg">PROBAR ALARMA 🔊</button>}
+                        {config.sound && <button onClick={()=>{audioRef.current.src=config.sound; audioRef.current.play();}} className="gold-bg w-full py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg">PROBAR CAMPANA 🔊</button>}
                     </div>
                 )}
 
-                {/* MODAL EDICION PLATO */}
                 {editing && (
                     <div className="fixed inset-0 bg-black/98 flex items-center justify-center p-6 z-[300] animate-fade-in">
                         <div className="bg-white text-zinc-900 p-8 rounded-[3rem] w-full max-w-sm space-y-4 shadow-2xl overflow-y-auto max-h-[90vh] no-scrollbar">
@@ -381,9 +396,9 @@
                                 {editing.img ? <img src={editing.img} className="w-full h-full object-cover" /> : <Icons.Camera/>}
                                 <input type="file" onChange={e=>compressAndSave(e, 'item')} className="absolute inset-0 opacity-0" />
                             </div>
-                            <input placeholder="Nombre" value={editing.name} onChange={e=>setEditing({...editing, name:e.target.value})} className="w-full p-4 bg-zinc-50 rounded-2xl font-black border" />
-                            <textarea placeholder="Descripción..." value={editing.desc} onChange={e=>setEditing({...editing, desc:e.target.value})} className="w-full p-4 bg-zinc-50 rounded-2xl font-bold text-xs h-20" />
-                            <input placeholder="Precio" type="number" value={editing.price} onChange={e=>setEditing({...editing, price:parseInt(e.target.value)})} className="w-full p-4 bg-zinc-50 rounded-2xl font-black" />
+                            <input placeholder="Nombre del Plato" value={editing.name} onChange={e=>setEditing({...editing, name:e.target.value})} className="w-full p-4 bg-zinc-50 rounded-2xl font-black border outline-none" />
+                            <textarea placeholder="Descripción" value={editing.desc} onChange={e=>setEditing({...editing, desc:e.target.value})} className="w-full p-4 bg-zinc-50 rounded-2xl font-bold text-xs h-20 outline-none" />
+                            <input placeholder="Precio" type="number" value={editing.price} onChange={e=>setEditing({...editing, price:parseInt(e.target.value)})} className="w-full p-4 bg-zinc-50 rounded-2xl font-black outline-none" />
                             <div className="flex gap-2">
                                 <button onClick={()=>setEditing(null)} className="flex-1 py-4 font-black uppercase text-[10px] text-zinc-400">Cerrar</button>
                                 <button onClick={()=>{
@@ -391,7 +406,7 @@
                                     if(editing.id) m[editing.cat] = m[editing.cat].map(x=>x.id===editing.id?editing:x);
                                     else m[editing.cat].push({...editing, id:Date.now()});
                                     save('menu', m); setEditing(null);
-                                }} className="flex-1 gold-bg py-4 rounded-3xl font-black uppercase text-[10px]">Guardar</button>
+                                }} className="flex-1 gold-bg py-4 rounded-3xl font-black uppercase text-[10px] shadow-lg">Guardar</button>
                             </div>
                         </div>
                     </div>
