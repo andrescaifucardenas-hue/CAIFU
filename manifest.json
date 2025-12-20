@@ -1,0 +1,17 @@
+{
+  "name": "CAIFU VIP Gastronomía",
+  "short_name": "CAIFU",
+  "description": "Menú Digital VIP y Pedidos en Línea",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#7f1d1d",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1147/1147805.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
