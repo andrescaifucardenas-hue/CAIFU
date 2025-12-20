@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CAIFU MASTER v820</title>
+    <title>CAIFU MASTER v830</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#7f1d1d">
@@ -38,7 +38,7 @@
 <body>
     <div id="master-loader">
         <img src="https://raw.githubusercontent.com/andrescaifucardenas-hue/CAIFU/main/logo.png.png" class="splash-logo">
-        <div style="margin-top: 20px; font-weight: 800; color: #d4af37; letter-spacing: 5px; font-size: 10px; border-top: 1px solid #d4af37; padding-top: 10px;">RECONECTANDO SISTEMA v820</div>
+        <div style="margin-top: 20px; font-weight: 800; color: #d4af37; letter-spacing: 5px; font-size: 10px; border-top: 1px solid #d4af37; padding-top: 10px;">FIX HISTORIAL v830</div>
     </div>
     <div id="root"></div>
 
@@ -76,7 +76,6 @@
         const [isCartOpen, setIsCartOpen] = useState(false);
         const [client, setClient] = useState({ name: "", address: "", notes: "", payment: "Efectivo", type: "Domicilio", table: "" });
         const [delivery, setDelivery] = useState(null);
-        const [distCalculada, setDistCalculada] = useState(null);
         const [slide, setSlide] = useState(0);
         const [isOpenNow, setIsOpenNow] = useState(true);
         const [loadingLoc, setLoadingLoc] = useState(false);
@@ -90,10 +89,19 @@
             });
             db.ref('menu').on('value', s => s.exists() && setMenuData(s.val()));
             db.ref('orders').on('value', s => {
-                const all = s.exists() ? Object.keys(s.val()).map(k => ({...s.val()[k], fid: k, status: s.val()[k].status || 'pending'})).reverse() : [];
-                setOrders(all);
+                if(s.exists()){
+                    const rawData = s.val();
+                    const all = Object.keys(rawData).map(k => ({
+                        ...rawData[k], 
+                        fid: k, 
+                        status: rawData[k].status || 'pending' // Asegurar status
+                    })).reverse();
+                    setOrders(all);
+                } else {
+                    setOrders([]);
+                }
             });
-            setTimeout(() => { document.getElementById('master-loader').style.opacity='0'; setTimeout(()=>document.getElementById('master-loader').style.display='none', 800); }, 2500);
+            setTimeout(() => { document.getElementById('master-loader').style.opacity='0'; setTimeout(()=>document.getElementById('master-loader').style.display='none', 800); }, 2000);
         }, []);
 
         useEffect(() => {
@@ -107,36 +115,25 @@
             setLoadingLoc(true);
             navigator.geolocation.getCurrentPosition(pos => {
                 const d = getDist(config.loc.lat, config.loc.lng, pos.coords.latitude, pos.coords.longitude);
-                setDistCalculada(d.toFixed(2));
                 const sortedZones = [...(config.zones || [])].sort((a, b) => parseFloat(a.km) - parseFloat(b.km));
-                // Si la distancia es menor a 100 metros (0.1km), forzamos a la primera zona
                 const match = d < 0.1 ? sortedZones[0] : sortedZones.find(z => d <= parseFloat(z.km));
-                
                 setDelivery(match ? match.price : "Fuera de Cobertura");
                 setLoadingLoc(false);
             }, () => { alert("Activa el GPS"); setLoadingLoc(false); }, {enableHighAccuracy:true});
         };
 
         const handleSend = () => {
-            const tableField = client.type === 'Mesa' ? document.getElementById('mesaInputFinal').value : "";
-            const costoDom = (client.type === 'Domicilio' && typeof delivery === 'number') ? delivery : 0;
-            const totalFinal = cart.reduce((a,b)=>a+(b.price*b.qty),0) + costoDom;
-            const itemsStr = cart.map(i => `${i.qty}x ${i.name}`).join(', ');
+            const tField = client.type === 'Mesa' ? document.getElementById('mesaFinal').value : "";
+            const cost = (client.type === 'Domicilio' && typeof delivery === 'number') ? delivery : 0;
+            const total = cart.reduce((a,b)=>a+(b.price*b.qty),0) + cost;
+            const items = cart.map(i => `${i.qty}x ${i.name}`).join(', ');
             
-            const orderData = { ...client, table: tableField, items: itemsStr, total: totalFinal, status: 'pending', time: new Date().toLocaleTimeString() };
-            db.ref('orders').push(orderData);
+            db.ref('orders').push({ ...client, table: tField, items: items, total: total, status: 'pending', time: new Date().toLocaleTimeString() });
 
-            const ubicacion = client.type === 'Mesa' ? `*Mesa:* ${tableField}` : `*Dirección:* ${client.address}`;
-            const msg = `*NUEVO PEDIDO CAIFU*%0A` +
-                        `----------------------------%0A` +
-                        `*Cliente:* ${client.name}%0A` +
-                        `${ubicacion}%0A` +
-                        `----------------------------%0A` +
-                        `*Pedido:* ${itemsStr}%0A` +
-                        `*Pago:* ${client.payment}%0A` +
-                        `*TOTAL:* $${totalFinal.toLocaleString()}`;
-
+            const loc = client.type === 'Mesa' ? `*Mesa:* ${tField}` : `*Dirección:* ${client.address}`;
+            const msg = `*NUEVO PEDIDO CAIFU*%0A----------------------------%0A*Cliente:* ${client.name}%0A${loc}%0A----------------------------%0A*Pedido:* ${items}%0A*Pago:* ${client.payment}%0A*TOTAL:* $${total.toLocaleString()}`;
             window.open(`https://wa.me/${config.ws}?text=${msg}`, '_blank');
+            
             setCart([]); setIsCartOpen(false); setClient({ name: "", address: "", notes: "", payment: "Efectivo", type: "Domicilio", table: "" }); setDelivery(null);
             alert("¡Pedido enviado! Siiiuuu 🚀");
         };
@@ -153,10 +150,10 @@
                             ))}
                             <div className="bg-overlay"></div>
                         </div>
-                        <img src="https://raw.githubusercontent.com/andrescaifucardenas-hue/CAIFU/main/logo.png.png" className="z-10 w-32 mx-auto mt-10 drop-shadow-2xl" />
+                        <img src="https://raw.githubusercontent.com/andrescaifucardenas-hue/CAIFU/main/logo.png.png" className="z-10 w-32 mx-auto mt-10" />
                         <h1 className="z-10 text-6xl font-black italic gold-text tracking-tighter uppercase">Caifu</h1>
                         <div className="z-10">
-                            {!isOpenNow && <p className="bg-red-600 text-white py-2 px-4 rounded-full text-[10px] font-black uppercase mb-4 animate-pulse">Cerrado ahora</p>}
+                            {!isOpenNow && <p className="bg-red-600 text-white py-2 px-4 rounded-full text-[10px] font-black uppercase mb-4 animate-pulse">Cerrado por ahora</p>}
                             <button onClick={()=>setView('menu')} className="w-full gold-bg py-6 rounded-full font-black text-xl uppercase shadow-2xl active:scale-95 transition">Ver Menú</button>
                         </div>
                     </div>
@@ -164,7 +161,7 @@
                     <div className="animate-fade-in">
                         <header className="sticky top-0 bg-black/80 backdrop-blur-xl p-5 border-b border-white/10 flex justify-between items-center z-50">
                             <button onClick={()=>setView('home')} className="p-2 bg-white/10 rounded-full">🏠</button>
-                            <span className="font-black italic gold-text uppercase text-sm">Menú VIP</span>
+                            <span className="font-black italic gold-text uppercase text-sm tracking-widest">CAIFU VIP</span>
                             <button onClick={()=>setIsCartOpen(true)} className="relative p-2 gold-bg rounded-full shadow-lg">🛒 {cart.length > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-black">{cart.reduce((a,b)=>a+b.qty,0)}</span>}</button>
                         </header>
                         <div className="category-bar flex overflow-x-auto no-scrollbar p-3 gap-3">
@@ -175,10 +172,10 @@
                         <main className="p-6 space-y-12 pb-24">
                             {Object.keys(menuData).map(cat => (
                                 <div key={cat} id={cat} className="scroll-mt-32">
-                                    <h2 className="text-3xl font-black border-l-[10px] border-[#d4af37] pl-4 mb-8 uppercase italic gold-text tracking-tighter">{cat}</h2>
+                                    <h2 className="text-3xl font-black border-l-[10px] border-[#d4af37] pl-4 mb-8 uppercase gold-text">{cat}</h2>
                                     <div className="grid gap-6">
                                         {menuData[cat].map(i => (
-                                            <div key={i.id} className="item-card p-3 flex gap-4 items-center shadow-xl border border-white/5">
+                                            <div key={i.id} className="item-card p-3 flex gap-4 items-center shadow-xl">
                                                 <div className="w-24 h-24 rounded-[1.8rem] overflow-hidden bg-white/10 flex-shrink-0">
                                                     {i.img && <img src={i.img} className="w-full h-full object-cover" />}
                                                 </div>
@@ -190,7 +187,7 @@
                                                             const ex = cart.find(x => x.id === i.id);
                                                             if(ex) setCart(cart.map(x=>x.id===i.id?{...x,qty:x.qty+1}:x));
                                                             else setCart([...cart, {...i, qty:1}]);
-                                                        }} className="gold-bg p-3 rounded-2xl active:scale-90 transition shadow-lg">+</button>
+                                                        }} className="gold-bg p-3 rounded-2xl active:scale-90 transition">+</button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -217,19 +214,18 @@
                                                 </div>
                                             ))}
                                         </div>
-                                        <input placeholder="Nombre Completo" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl font-black text-white outline-none focus:border-[#d4af37]" value={client.name} onChange={e=>setClient({...client, name:e.target.value})} />
+                                        <input placeholder="Tu Nombre" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl font-black text-white outline-none focus:border-[#d4af37]" value={client.name} onChange={e=>setClient({...client, name:e.target.value})} />
                                         <div className="flex gap-2">
                                             {['Domicilio', 'Mesa'].map(t => (
                                                 <button key={t} onClick={()=>setClient({...client, type:t})} className={`flex-1 py-4 rounded-2xl font-black ${client.type===t?'gold-bg':'bg-white/5 text-zinc-500'}`}>{t}</button>
                                             ))}
                                         </div>
                                         {client.type==='Mesa' ? (
-                                            <input id="mesaInputFinal" placeholder="Número de Mesa" type="number" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black" />
+                                            <input id="mesaFinal" placeholder="Número de Mesa" type="number" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black" />
                                         ) : (
                                             <div className="space-y-4">
-                                                <input placeholder="Dirección de entrega" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black" value={client.address} onChange={e=>setClient({...client, address:e.target.value})} />
+                                                <input placeholder="Dirección exacta" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black outline-none" value={client.address} onChange={e=>setClient({...client, address:e.target.value})} />
                                                 <button onClick={calcGPS} className="w-full gold-bg py-4 rounded-2xl font-black uppercase text-[10px] shadow-lg">📍 CALCULAR ENVÍO (GPS)</button>
-                                                {distCalculada !== null && <p className="text-center text-[8px] text-zinc-500 uppercase">Distancia: {distCalculada} KM</p>}
                                                 {delivery !== null && <p className="text-center font-black gold-text text-[10px] uppercase tracking-widest">{typeof delivery === 'number' ? `Tarifa envío: $${delivery.toLocaleString()}` : delivery}</p>}
                                             </div>
                                         )}
@@ -238,25 +234,25 @@
                                                 <button key={p} onClick={()=>setClient({...client, payment:p})} className={`flex-1 py-3 rounded-xl font-black text-[9px] ${client.payment===p?'gold-bg':'bg-white/5 text-zinc-500'}`}>{p}</button>
                                             ))}
                                         </div>
-                                        <textarea placeholder="Notas extra (Ej: Sin salsas)" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white h-20 outline-none" value={client.notes} onChange={e=>setClient({...client, notes:e.target.value})} />
+                                        <textarea placeholder="Notas extra..." className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white h-20 outline-none" value={client.notes} onChange={e=>setClient({...client, notes:e.target.value})} />
                                         <div className="flex justify-between items-center text-4xl font-black gold-text pt-6 border-t border-dashed border-white/10 italic">
-                                            <span className="text-white text-lg not-italic font-bold uppercase tracking-widest">Total Orden</span>
+                                            <span className="text-white text-lg not-italic font-bold uppercase tracking-widest">Total</span>
                                             <span>${(cart.reduce((a,b)=>a+(b.price*b.qty),0) + (client.type === 'Domicilio' && typeof delivery === 'number' ? delivery : 0)).toLocaleString()}</span>
                                         </div>
-                                        <button onClick={handleSend} disabled={!client.name || (client.type==='Domicilio' && typeof delivery !== 'number') || cart.length === 0} className="w-full py-6 rounded-full gold-bg font-black text-xl uppercase shadow-2xl disabled:bg-zinc-800 transition-all">ENVIAR PEDIDO</button>
+                                        <button onClick={handleSend} disabled={!client.name || (client.type==='Domicilio' && typeof delivery !== 'number') || cart.length === 0} className="w-full py-6 rounded-full gold-bg font-black text-xl uppercase shadow-2xl transition-all">ENVIAR PEDIDO</button>
                                     </>
                                 ) : (
-                                    <div className="text-center py-10 space-y-4">
+                                    <div className="text-center py-10">
                                         <span className="text-5xl">🌙</span>
-                                        <h3 className="text-2xl font-black gold-text italic">ESTAMOS CERRADOS</h3>
-                                        <button onClick={()=>setIsCartOpen(false)} className="w-full bg-white/5 py-4 rounded-2xl font-black text-zinc-500">VOLVER LUEGO</button>
+                                        <h3 className="text-2xl font-black gold-text italic mt-4">CERRADO</h3>
+                                        <button onClick={()=>setIsCartOpen(false)} className="w-full bg-white/5 py-4 rounded-2xl mt-4 font-black">VOLVER</button>
                                     </div>
                                 )}
                             </div>
                         </div>
                     </div>
                 )}
-                {loadingLoc && <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center font-black gold-text animate-pulse uppercase italic tracking-widest">Calculando con satélite...</div>}
+                {loadingLoc && <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center font-black gold-text animate-pulse uppercase tracking-widest text-[10px]">Sincronizando GPS...</div>}
             </div>
         );
     };
@@ -266,24 +262,18 @@
         const [auth, setAuth] = useState(false);
         const [editing, setEditing] = useState(null);
         const [load, setLoad] = useState(false);
-        const save = (p, d) => db.ref(p).set(d);
 
-        const handleUp = async (e, type) => {
-            const f = e.target.files[0]; if(!f) return;
-            setLoad(true);
-            const r = new FileReader(); r.readAsDataURL(f);
-            r.onload = ev => {
-                if(type === 'bg') save('config/bg', [...(config.bg || []), ev.target.result]);
-                else if(type === 'item') setEditing({...editing, img: ev.target.result});
-                setLoad(false);
-            };
+        const updateStatus = (fid, newStatus) => {
+            db.ref(`orders/${fid}/status`).set(newStatus)
+                .then(() => alert("Estado actualizado"))
+                .catch(e => alert("Error: " + e.message));
         };
 
         if(!auth) return (
             <div className="admin-view flex flex-col items-center justify-center p-10 text-center text-white">
-                <img src="https://raw.githubusercontent.com/andrescaifucardenas-hue/CAIFU/main/logo.png.png" className="w-24 mb-6 drop-shadow-2xl" />
-                <h2 className="text-2xl font-black gold-text mb-8 uppercase italic tracking-widest">Admin Caifu</h2>
-                <button onClick={()=>setAuth(true)} className="gold-bg w-full py-6 rounded-[2rem] font-black uppercase text-xl shadow-2xl active:scale-95 transition">Entrar</button>
+                <img src="https://raw.githubusercontent.com/andrescaifucardenas-hue/CAIFU/main/logo.png.png" className="w-24 mb-6" />
+                <h2 className="text-2xl font-black gold-text mb-8 uppercase italic tracking-widest">Admin Caifu v830</h2>
+                <button onClick={()=>setAuth(true)} className="gold-bg w-full py-6 rounded-[2rem] font-black uppercase text-xl shadow-2xl">Entrar</button>
             </div>
         );
 
@@ -291,70 +281,73 @@
             <div className="admin-view p-5 pb-24 text-white animate-fade-in">
                 <div className="flex justify-between items-center mb-6 pb-4 border-b border-white/10">
                     <h2 className="text-xl font-black gold-text italic uppercase">Panel de Control</h2>
-                    <button onClick={onExit} className="bg-red-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase shadow-lg">Salir</button>
+                    <button onClick={onExit} className="bg-red-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase">Salir</button>
                 </div>
                 
                 <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2">
                     {['inbox', 'historial', 'menu', 'carrusel', 'gps', 'ajustes'].map(t => (
-                        <button key={t} onClick={()=>setTab(t)} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase whitespace-nowrap ${tab===t?'gold-bg':'bg-zinc-900 text-zinc-500'} transition-all shadow-md`}>{t}</button>
+                        <button key={t} onClick={()=>setTab(t)} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase whitespace-nowrap ${tab===t?'gold-bg':'bg-zinc-900 text-zinc-500'} transition-all`}>{t}</button>
                     ))}
                 </div>
 
                 {tab === 'inbox' && (
                     <div className="space-y-4">
-                        {orders.filter(o=>o.status==='pending').map(o => (
+                        {orders.filter(o => o.status === 'pending').map(o => (
                             <div key={o.fid} className="p-5 rounded-[2.5rem] bg-zinc-900 border border-zinc-800 border-l-4 border-l-yellow-500 shadow-xl">
-                                <div className="flex justify-between text-yellow-500 font-black text-[10px] mb-2 uppercase italic"><span>{o.name}</span><span>{o.time}</span></div>
-                                <p className="text-sm font-black mb-4 uppercase text-zinc-100">{o.items}</p>
+                                <div className="flex justify-between text-yellow-500 font-black text-[10px] mb-2 uppercase"><span>{o.name}</span><span>{o.time}</span></div>
+                                <p className="text-sm font-black mb-4 uppercase">{o.items}</p>
                                 <div className="text-[10px] bg-black/40 p-3 rounded-2xl mb-4 text-zinc-400 font-bold uppercase leading-relaxed">
-                                    Pago: {o.payment} | {o.table ? `MESA: ${o.table}` : `DIR: ${o.address}`} <br/> NOTAS: {o.notes || '---'}
+                                    Pago: {o.payment} | {o.table ? `MESA: ${o.table}` : `DIR: ${o.address}`} <br/>
+                                    NOTAS: {o.notes || '---'}
                                 </div>
                                 <div className="flex justify-between items-center pt-2 border-t border-zinc-800 mb-4">
-                                    <span className="text-[10px] font-bold text-zinc-500 uppercase italic">Cobrar Total:</span>
+                                    <span className="text-[10px] font-bold text-zinc-500 uppercase">Cobrar Total:</span>
                                     <span className="text-xl font-black text-green-500 italic">$ {o.total?.toLocaleString() || "0"}</span>
                                 </div>
                                 <div className="flex gap-2">
-                                    <button onClick={()=>db.ref(`orders/${o.fid}/status`).set('done')} className="flex-1 bg-green-600 py-3 rounded-2xl flex justify-center shadow-lg text-xl">✅</button>
-                                    <button onClick={()=>db.ref(`orders/${o.fid}/status`).set('cancel')} className="flex-1 bg-red-600 py-3 rounded-2xl flex justify-center text-xl">❌</button>
+                                    <button onClick={()=>updateStatus(o.fid, 'done')} className="flex-1 bg-green-600 py-3 rounded-2xl flex justify-center text-xl shadow-lg">✅</button>
+                                    <button onClick={()=>updateStatus(o.fid, 'cancel')} className="flex-1 bg-red-600 py-3 rounded-2xl flex justify-center text-xl">❌</button>
                                 </div>
                             </div>
                         ))}
+                        {orders.filter(o => o.status === 'pending').length === 0 && <p className="text-center text-zinc-600 font-bold uppercase text-[10px] py-10">No hay pedidos nuevos</p>}
                     </div>
                 )}
 
                 {tab === 'historial' && (
-                    <div className="space-y-3 animate-fade-in">
-                        <button onClick={()=>{ if(confirm("¿Borrar historial?")) db.ref('orders').remove(); }} className="w-full py-2 bg-red-900 text-red-200 text-[9px] font-black rounded-xl mb-6 uppercase tracking-widest">Borrar Historial</button>
-                        {orders.filter(o=>o.status!=='pending').map(o => (
+                    <div className="space-y-3">
+                        <button onClick={()=>{ if(confirm("¿Borrar todo?")) db.ref('orders').remove(); }} className="w-full py-2 bg-red-900 text-red-200 text-[9px] font-black rounded-xl mb-6 uppercase tracking-widest">Borrar Historial</button>
+                        {orders.filter(o => o.status !== 'pending').map(o => (
                             <div key={o.fid} className="p-5 bg-zinc-900 rounded-3xl border border-zinc-800 opacity-80 mb-2">
                                 <div className="flex justify-between items-center mb-2">
                                     <span className={`text-[10px] font-black uppercase ${o.status==='done'?'text-green-500':'text-red-500'}`}>{o.status}</span>
                                     <span className="text-[9px] text-zinc-500">{o.time}</span>
                                 </div>
                                 <p className="text-xs font-black uppercase">{o.name} - {o.items}</p>
-                                <div className="flex justify-between mt-3 text-[10px] font-black gold-text border-t border-zinc-800 pt-2 italic">
-                                    <span>{o.table ? `Mesa: ${o.table}` : `Dir: ${o.address}`}</span>
+                                <div className="flex justify-between mt-3 text-[10px] font-black gold-text border-t border-zinc-800 pt-2">
+                                    <span className="text-zinc-500 font-bold">{o.table ? `Mesa: ${o.table}` : `Dir: ${o.address}`}</span>
                                     <span>$ {o.total?.toLocaleString() || "0"}</span>
                                 </div>
                             </div>
                         ))}
+                        {orders.filter(o => o.status !== 'pending').length === 0 && <p className="text-center text-zinc-600 font-bold uppercase text-[10px] py-10">Historial vacío</p>}
                     </div>
                 )}
 
                 {tab === 'gps' && (
                     <div className="space-y-4">
-                        <button onClick={()=>navigator.geolocation.getCurrentPosition(p=>{ save('config/loc', {lat:p.coords.latitude, lng:p.coords.longitude}); alert("Local fijado con éxito"); }, null, {enableHighAccuracy:true})} className="w-full bg-blue-600 py-4 rounded-2xl font-black text-xs shadow-lg uppercase tracking-widest">📍 MARCAR LOCAL AQUÍ</button>
+                        <button onClick={()=>navigator.geolocation.getCurrentPosition(p=>{ db.ref('config/loc').set({lat:p.coords.latitude, lng:p.coords.longitude}); alert("Local fijado"); }, null, {enableHighAccuracy:true})} className="w-full bg-blue-600 py-4 rounded-2xl font-black text-xs shadow-lg uppercase tracking-widest">📍 MARCAR LOCAL AQUÍ</button>
                         <div className="p-5 bg-zinc-900 rounded-[2.5rem] border border-zinc-800 shadow-xl">
-                            <h3 className="text-[10px] font-black uppercase text-zinc-500 italic mb-4">Zonas y Precios</h3>
-                            <button onClick={()=>save('config/zones', [...(config.zones || []), {id:Date.now(), label:"Zona", km:1, price:1000}])} className="bg-green-600 w-full py-2 rounded-xl mb-4 font-bold shadow-md">+</button>
-                            {(config.zones || []).map((z, i) => (
-                                <div key={z.id} className="bg-zinc-800/50 p-4 rounded-3xl mb-3 border border-zinc-700">
-                                    <input value={z.label} onChange={e=>{const n=[...config.zones]; n[i].label=e.target.value.toUpperCase(); save('config/zones', n)}} className="bg-transparent font-black uppercase text-xs w-full mb-3 outline-none border-b border-zinc-700 pb-1" />
+                            <h3 className="text-[10px] font-black uppercase text-zinc-500 mb-4 italic">Zonas de Envío</h3>
+                            <button onClick={()=>db.ref('config/zones').push({id:Date.now(), label:"Zona", km:1, price:1000})} className="bg-green-600 w-full py-2 rounded-xl mb-4 font-bold shadow-md">+</button>
+                            {(config.zones ? Object.keys(config.zones).map(k => ({...config.zones[k], zid: k})) : []).map((z, i) => (
+                                <div key={z.zid} className="bg-zinc-800/50 p-4 rounded-3xl mb-3 border border-zinc-700">
+                                    <input value={z.label} onChange={e=>db.ref(`config/zones/${z.zid}/label`).set(e.target.value.toUpperCase())} className="bg-transparent font-black uppercase text-xs w-full mb-3 outline-none border-b border-zinc-700 pb-1" />
                                     <div className="grid grid-cols-2 gap-4 text-[8px] uppercase font-bold text-zinc-500">
-                                        <div>Km Máx <input type="number" step="0.1" value={z.km} onChange={e=>{const n=[...config.zones]; n[i].km=parseFloat(e.target.value); save('config/zones', n)}} className="w-full bg-zinc-700 p-2 rounded-xl text-xs text-white border border-zinc-600 outline-none" /></div>
-                                        <div>Precio $ <input type="number" value={z.price} onChange={e=>{const n=[...config.zones]; n[i].price=parseInt(e.target.value); save('config/zones', n)}} className="w-full bg-zinc-700 p-2 rounded-xl text-xs text-white border border-zinc-600 outline-none" /></div>
+                                        <div>Km Máx <input type="number" step="0.1" value={z.km} onChange={e=>db.ref(`config/zones/${z.zid}/km`).set(parseFloat(e.target.value))} className="w-full bg-zinc-700 p-2 rounded-xl text-xs text-white border border-zinc-600 outline-none" /></div>
+                                        <div>Precio $ <input type="number" value={z.price} onChange={e=>db.ref(`config/zones/${z.zid}/price`).set(parseInt(e.target.value))} className="w-full bg-zinc-700 p-2 rounded-xl text-xs text-white border border-zinc-600 outline-none" /></div>
                                     </div>
-                                    <button onClick={()=>save('config/zones', config.zones.filter(x=>x.id!==z.id))} className="text-red-500 text-[8px] mt-4 w-full text-right font-black italic">Eliminar</button>
+                                    <button onClick={()=>db.ref(`config/zones/${z.zid}`).remove()} className="text-red-500 text-[8px] mt-4 w-full text-right font-black italic uppercase">Eliminar</button>
                                 </div>
                             ))}
                         </div>
@@ -363,11 +356,11 @@
                 
                 {tab === 'menu' && (
                     <div className="space-y-4">
-                        <button onClick={()=>{const c=prompt("Categoría:"); if(c) save(`menu/${c.toUpperCase()}`, [{id:Date.now(), name:"PLATO NUEVO", price:0}]);}} className="w-full bg-green-600 py-3 rounded-xl font-black text-xs uppercase shadow-lg">+ CATEGORÍA</button>
+                        <button onClick={()=>{const c=prompt("Categoría:"); if(c) db.ref(`menu/${c.toUpperCase()}`).set([{id:Date.now(), name:"NUEVO PLATO", price:0}]);}} className="w-full bg-green-600 py-3 rounded-xl font-black text-xs uppercase shadow-lg">+ CATEGORÍA</button>
                         {Object.keys(menuData).map(cat => (
                             <div key={cat} className="p-4 bg-zinc-900 rounded-[2.5rem] border border-zinc-800 mb-4 shadow-xl">
                                 <div className="flex justify-between items-center border-b border-white/5 pb-2 mb-4"><span className="gold-text font-black text-xs uppercase italic">{cat}</span><button onClick={()=>db.ref(`menu/${cat}`).remove()} className="text-red-500 text-xs">🗑️</button></div>
-                                <button onClick={()=>setEditing({cat, name:"", desc:"", price:0})} className="w-full py-2 bg-zinc-800 rounded-xl text-[9px] font-black mb-3">+ PLATO</button>
+                                <button onClick={()=>setEditing({cat, name:"", desc:"", price:0})} className="w-full py-2 bg-zinc-800 rounded-xl text-[9px] font-black mb-3 border border-zinc-700">+ PLATO</button>
                                 {menuData[cat].map(i => (
                                     <div key={i.id} className="flex justify-between items-center text-xs py-1 border-b border-white/5 last:border-0 mb-1"><span>{i.name}</span><button onClick={()=>setEditing({...i, cat})} className="text-blue-400 font-bold uppercase">Editar</button></div>
                                 ))}
@@ -379,26 +372,30 @@
                 {tab === 'ajustes' && (
                     <div className="p-6 bg-zinc-900 rounded-[3rem] border border-zinc-800 shadow-xl space-y-8 text-white">
                         <div>
-                            <h3 className="text-[10px] font-black uppercase text-zinc-500 mb-4 italic">WhatsApp Negocio (57...)</h3>
-                            <input value={config.ws} onChange={e=>save('config/ws', e.target.value)} className="w-full bg-black/50 p-4 rounded-xl text-white font-black border border-zinc-700 outline-none" />
+                            <h3 className="text-[10px] font-black uppercase text-zinc-500 mb-4 italic">WhatsApp (57...)</h3>
+                            <input value={config.ws} onChange={e=>db.ref('config/ws').set(e.target.value)} className="w-full bg-black/50 p-4 rounded-xl text-white font-black border border-zinc-700 outline-none" />
                         </div>
                         <div>
-                            <h3 className="text-[10px] font-black uppercase text-zinc-500 mb-4 italic">Horario Apertura/Cierre (24h)</h3>
+                            <h3 className="text-[10px] font-black uppercase text-zinc-500 mb-4 italic">Horario (24h)</h3>
                             <div className="grid grid-cols-2 gap-4">
-                                <div><span className="text-[8px] uppercase font-bold">Abre:</span><input type="number" value={config.open} onChange={e=>save('config/open', parseInt(e.target.value))} className="w-full bg-black/50 p-3 rounded-xl outline-none text-white" /></div>
-                                <div><span className="text-[8px] uppercase font-bold">Cierra:</span><input type="number" value={config.close} onChange={e=>save('config/close', parseInt(e.target.value))} className="w-full bg-black/50 p-3 rounded-xl outline-none text-white" /></div>
+                                <div><span className="text-[8px] uppercase font-bold">Abre:</span><input type="number" value={config.open} onChange={e=>db.ref('config/open').set(parseInt(e.target.value))} className="w-full bg-black/50 p-3 rounded-xl outline-none" /></div>
+                                <div><span className="text-[8px] uppercase font-bold">Cierra:</span><input type="number" value={config.close} onChange={e=>db.ref('config/close').set(parseInt(e.target.value))} className="w-full bg-black/50 p-3 rounded-xl outline-none" /></div>
                             </div>
                         </div>
                     </div>
                 )}
-                
+
                 {tab === 'carrusel' && (
                     <div className="space-y-4">
-                        <input type="file" onChange={e=>handleUp(e, 'bg')} id="bg-in-admin" className="hidden" />
+                        <input type="file" onChange={e=>{
+                            const f=e.target.files[0]; if(!f) return;
+                            setLoad(true); const r=new FileReader(); r.readAsDataURL(f);
+                            r.onload=ev=> { db.ref('config/bg').set([...(config.bg || []), ev.target.result]); setLoad(false); };
+                        }} id="bg-in-admin" className="hidden" />
                         <label htmlFor="bg-in-admin" className="w-full bg-blue-600 py-5 rounded-3xl flex justify-center items-center font-black text-sm cursor-pointer uppercase shadow-lg">📷&nbsp;SUBIR FONDO</label>
                         <div className="grid grid-cols-2 gap-4">
                             {config.bg && config.bg.map((img, i) => (
-                                <div key={i} className="relative aspect-9-16 rounded-2xl overflow-hidden border-2 border-zinc-800 shadow-md"><img src={img} className="w-full h-full object-cover" /><button onClick={()=>{const n=[...config.bg]; n.splice(i,1); save('config/bg', n)}} className="absolute top-2 right-2 bg-red-600 p-2 rounded-full shadow-lg">🗑️</button></div>
+                                <div key={i} className="relative aspect-9-16 rounded-2xl overflow-hidden border-2 border-zinc-800"><img src={img} className="w-full h-full object-cover" /><button onClick={()=>{const n=[...config.bg]; n.splice(i,1); db.ref('config/bg').set(n);}} className="absolute top-2 right-2 bg-red-600 p-2 rounded-full shadow-lg">🗑️</button></div>
                             ))}
                         </div>
                     </div>
@@ -409,7 +406,11 @@
                         <div className="bg-white p-8 rounded-[3rem] w-full max-w-sm space-y-4 shadow-2xl overflow-y-auto max-h-[90vh] no-scrollbar">
                             <div className="w-full aspect-square bg-zinc-100 rounded-[2.5rem] overflow-hidden relative border-2 border-dashed flex items-center justify-center">
                                 {editing.img ? <img src={editing.img} className="w-full h-full object-cover" /> : <span className="text-3xl">📷</span>}
-                                <input type="file" onChange={e=>handleUp(e, 'item')} className="absolute inset-0 opacity-0" />
+                                <input type="file" onChange={e=>{
+                                    const f=e.target.files[0]; if(!f) return;
+                                    const r=new FileReader(); r.readAsDataURL(f);
+                                    r.onload=ev=>setEditing({...editing, img: ev.target.result});
+                                }} className="absolute inset-0 opacity-0" />
                             </div>
                             <input placeholder="Nombre" value={editing.name} onChange={e=>setEditing({...editing, name:e.target.value})} className="w-full p-4 bg-zinc-50 rounded-2xl font-black border outline-none" />
                             <textarea placeholder="Descripción..." value={editing.desc} onChange={e=>setEditing({...editing, desc:e.target.value})} className="w-full p-4 bg-zinc-50 rounded-2xl font-bold text-xs h-20 outline-none" />
@@ -420,13 +421,13 @@
                                     const m = {...menuData};
                                     if(editing.id) m[editing.cat] = m[editing.cat].map(x=>x.id===editing.id?editing:x);
                                     else m[editing.cat].push({...editing, id:Date.now()});
-                                    save('menu', m); setEditing(null);
+                                    db.ref('menu').set(m); setEditing(null);
                                 }} className="flex-1 gold-bg py-4 rounded-3xl font-black uppercase text-[10px] shadow-lg">Guardar</button>
                             </div>
                         </div>
                     </div>
                 )}
-                {load && <div className="fixed inset-0 bg-black/90 z-[400] flex items-center justify-center font-black gold-text animate-pulse uppercase italic tracking-widest shadow-2xl">SINCRO...</div>}
+                {load && <div className="fixed inset-0 bg-black/90 z-[400] flex items-center justify-center font-black gold-text animate-pulse uppercase tracking-widest text-[10px]">SINCRO...</div>}
             </div>
         );
     };
