@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CAIFU MASTER v830</title>
+    <title>CAIFU MASTER v840</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#7f1d1d">
@@ -38,7 +38,7 @@
 <body>
     <div id="master-loader">
         <img src="https://raw.githubusercontent.com/andrescaifucardenas-hue/CAIFU/main/logo.png.png" class="splash-logo">
-        <div style="margin-top: 20px; font-weight: 800; color: #d4af37; letter-spacing: 5px; font-size: 10px; border-top: 1px solid #d4af37; padding-top: 10px;">FIX HISTORIAL v830</div>
+        <div style="margin-top: 20px; font-weight: 800; color: #d4af37; letter-spacing: 5px; font-size: 10px; border-top: 1px solid #d4af37; padding-top: 10px;">CAIFU VIP v840</div>
     </div>
     <div id="root"></div>
 
@@ -94,7 +94,7 @@
                     const all = Object.keys(rawData).map(k => ({
                         ...rawData[k], 
                         fid: k, 
-                        status: rawData[k].status || 'pending' // Asegurar status
+                        status: rawData[k].status || 'pending'
                     })).reverse();
                     setOrders(all);
                 } else {
@@ -115,7 +115,7 @@
             setLoadingLoc(true);
             navigator.geolocation.getCurrentPosition(pos => {
                 const d = getDist(config.loc.lat, config.loc.lng, pos.coords.latitude, pos.coords.longitude);
-                const sortedZones = [...(config.zones || [])].sort((a, b) => parseFloat(a.km) - parseFloat(b.km));
+                const sortedZones = [...(config.zones ? Object.keys(config.zones).map(k => config.zones[k]) : [])].sort((a, b) => parseFloat(a.km) - parseFloat(b.km));
                 const match = d < 0.1 ? sortedZones[0] : sortedZones.find(z => d <= parseFloat(z.km));
                 setDelivery(match ? match.price : "Fuera de Cobertura");
                 setLoadingLoc(false);
@@ -135,7 +135,7 @@
             window.open(`https://wa.me/${config.ws}?text=${msg}`, '_blank');
             
             setCart([]); setIsCartOpen(false); setClient({ name: "", address: "", notes: "", payment: "Efectivo", type: "Domicilio", table: "" }); setDelivery(null);
-            alert("¡Pedido enviado! Siiiuuu 🚀");
+            alert("¡Pedido enviado con éxito! SIUUU 🚀");
         };
 
         if(isAdmin) return <AdminPanel config={config} menuData={menuData} orders={orders} onExit={()=>setIsAdmin(false)} />;
@@ -153,7 +153,7 @@
                         <img src="https://raw.githubusercontent.com/andrescaifucardenas-hue/CAIFU/main/logo.png.png" className="z-10 w-32 mx-auto mt-10" />
                         <h1 className="z-10 text-6xl font-black italic gold-text tracking-tighter uppercase">Caifu</h1>
                         <div className="z-10">
-                            {!isOpenNow && <p className="bg-red-600 text-white py-2 px-4 rounded-full text-[10px] font-black uppercase mb-4 animate-pulse">Cerrado por ahora</p>}
+                            {!isOpenNow && <p className="bg-red-600 text-white py-2 px-4 rounded-full text-[10px] font-black uppercase mb-4 animate-pulse">Cerrado por hoy</p>}
                             <button onClick={()=>setView('menu')} className="w-full gold-bg py-6 rounded-full font-black text-xl uppercase shadow-2xl active:scale-95 transition">Ver Menú</button>
                         </div>
                     </div>
@@ -252,7 +252,7 @@
                         </div>
                     </div>
                 )}
-                {loadingLoc && <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center font-black gold-text animate-pulse uppercase tracking-widest text-[10px]">Sincronizando GPS...</div>}
+                {loadingLoc && <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center font-black gold-text animate-pulse uppercase tracking-widest text-[10px]">Calculando GPS...</div>}
             </div>
         );
     };
@@ -265,22 +265,22 @@
 
         const updateStatus = (fid, newStatus) => {
             db.ref(`orders/${fid}/status`).set(newStatus)
-                .then(() => alert("Estado actualizado"))
-                .catch(e => alert("Error: " + e.message));
+                .then(() => alert("Estado actualizado ✅"))
+                .catch(e => alert("Error al guardar: " + e.message));
         };
 
         if(!auth) return (
             <div className="admin-view flex flex-col items-center justify-center p-10 text-center text-white">
                 <img src="https://raw.githubusercontent.com/andrescaifucardenas-hue/CAIFU/main/logo.png.png" className="w-24 mb-6" />
-                <h2 className="text-2xl font-black gold-text mb-8 uppercase italic tracking-widest">Admin Caifu v830</h2>
-                <button onClick={()=>setAuth(true)} className="gold-bg w-full py-6 rounded-[2rem] font-black uppercase text-xl shadow-2xl">Entrar</button>
+                <h2 className="text-2xl font-black gold-text mb-8 uppercase italic tracking-widest">ADMIN CAIFU v840</h2>
+                <button onClick={()=>setAuth(true)} className="gold-bg w-full py-6 rounded-[2rem] font-black uppercase text-xl shadow-2xl">Entrar al Panel</button>
             </div>
         );
 
         return (
             <div className="admin-view p-5 pb-24 text-white animate-fade-in">
                 <div className="flex justify-between items-center mb-6 pb-4 border-b border-white/10">
-                    <h2 className="text-xl font-black gold-text italic uppercase">Panel de Control</h2>
+                    <h2 className="text-xl font-black gold-text italic uppercase">Panel Control v840</h2>
                     <button onClick={onExit} className="bg-red-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase">Salir</button>
                 </div>
                 
@@ -310,13 +310,12 @@
                                 </div>
                             </div>
                         ))}
-                        {orders.filter(o => o.status === 'pending').length === 0 && <p className="text-center text-zinc-600 font-bold uppercase text-[10px] py-10">No hay pedidos nuevos</p>}
                     </div>
                 )}
 
                 {tab === 'historial' && (
                     <div className="space-y-3">
-                        <button onClick={()=>{ if(confirm("¿Borrar todo?")) db.ref('orders').remove(); }} className="w-full py-2 bg-red-900 text-red-200 text-[9px] font-black rounded-xl mb-6 uppercase tracking-widest">Borrar Historial</button>
+                        <button onClick={()=>{ if(confirm("¿Borrar historial?")) db.ref('orders').remove(); }} className="w-full py-2 bg-red-900 text-red-200 text-[9px] font-black rounded-xl mb-6 uppercase tracking-widest">Borrar Historial</button>
                         {orders.filter(o => o.status !== 'pending').map(o => (
                             <div key={o.fid} className="p-5 bg-zinc-900 rounded-3xl border border-zinc-800 opacity-80 mb-2">
                                 <div className="flex justify-between items-center mb-2">
@@ -330,15 +329,14 @@
                                 </div>
                             </div>
                         ))}
-                        {orders.filter(o => o.status !== 'pending').length === 0 && <p className="text-center text-zinc-600 font-bold uppercase text-[10px] py-10">Historial vacío</p>}
                     </div>
                 )}
 
                 {tab === 'gps' && (
                     <div className="space-y-4">
-                        <button onClick={()=>navigator.geolocation.getCurrentPosition(p=>{ db.ref('config/loc').set({lat:p.coords.latitude, lng:p.coords.longitude}); alert("Local fijado"); }, null, {enableHighAccuracy:true})} className="w-full bg-blue-600 py-4 rounded-2xl font-black text-xs shadow-lg uppercase tracking-widest">📍 MARCAR LOCAL AQUÍ</button>
+                        <button onClick={()=>navigator.geolocation.getCurrentPosition(p=>{ db.ref('config/loc').set({lat:p.coords.latitude, lng:p.coords.longitude}); alert("Local fijado con éxito"); }, null, {enableHighAccuracy:true})} className="w-full bg-blue-600 py-4 rounded-2xl font-black text-xs shadow-lg uppercase tracking-widest">📍 FIJAR LOCAL AQUÍ</button>
                         <div className="p-5 bg-zinc-900 rounded-[2.5rem] border border-zinc-800 shadow-xl">
-                            <h3 className="text-[10px] font-black uppercase text-zinc-500 mb-4 italic">Zonas de Envío</h3>
+                            <h3 className="text-[10px] font-black uppercase text-zinc-500 mb-4 italic">Zonas y Precios</h3>
                             <button onClick={()=>db.ref('config/zones').push({id:Date.now(), label:"Zona", km:1, price:1000})} className="bg-green-600 w-full py-2 rounded-xl mb-4 font-bold shadow-md">+</button>
                             {(config.zones ? Object.keys(config.zones).map(k => ({...config.zones[k], zid: k})) : []).map((z, i) => (
                                 <div key={z.zid} className="bg-zinc-800/50 p-4 rounded-3xl mb-3 border border-zinc-700">
