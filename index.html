@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CAIFU MASTER v870</title>
+    <title>CAIFU MASTER v880</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#7f1d1d">
@@ -34,17 +34,15 @@
         .category-bar { position: sticky; top: 70px; z-index: 40; background: rgba(0,0,0,0.9); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(212, 175, 55, 0.3); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         
-        /* Barra de Total Inferior */
-        .quick-total-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(10, 10, 10, 0.95); border-top: 1px solid #d4af37; padding: 15px 25px; display: flex; align-items: center; justify-content: space-between; z-index: 900; backdrop-filter: blur(15px); box-shadow: 0 -10px 30px rgba(0,0,0,0.8); animation: slideUp 0.4s ease-out; }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        
-        .install-banner { position: fixed; bottom: 85px; left: 20px; right: 20px; background: rgba(20, 20, 20, 0.95); border: 1px solid #d4af37; border-radius: 1.5rem; padding: 15px; display: flex; align-items: center; justify-content: space-between; z-index: 1000; backdrop-filter: blur(15px); }
+        /* BARRA PREMIUM CORREGIDA */
+        .quick-total-bar { position: fixed; bottom: 20px; left: 15px; right: 15px; background: rgba(15, 15, 15, 0.98); border: 1px solid #d4af37; border-radius: 1.5rem; padding: 18px 25px; display: flex; align-items: center; justify-content: space-between; z-index: 2000; backdrop-filter: blur(20px); box-shadow: 0 15px 40px rgba(0,0,0,0.9); animation: slideUp 0.5s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
+        @keyframes slideUp { from { transform: translateY(150%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     </style>
 </head>
 <body>
     <div id="master-loader">
         <img src="https://raw.githubusercontent.com/andrescaifucardenas-hue/CAIFU/main/logo.png.png" class="splash-logo">
-        <div style="margin-top: 20px; font-weight: 800; color: #d4af37; letter-spacing: 5px; font-size: 10px; border-top: 1px solid #d4af37; padding-top: 10px;">CARGANDO v870</div>
+        <div style="margin-top: 20px; font-weight: 800; color: #d4af37; letter-spacing: 5px; font-size: 10px; border-top: 1px solid #d4af37; padding-top: 10px;">EXPERIENCIA VIP v880</div>
     </div>
     <div id="root"></div>
 
@@ -138,9 +136,9 @@
             const total = cart.reduce((a,b)=>a+(b.price*b.qty),0) + (typeof delivery === 'number' ? delivery : 0);
             const items = cart.map(i => `${i.qty}x ${i.name}`).join(', ');
             db.ref('orders').push({ ...client, table: tVal, items, total, status: 'pending', time: new Date().toLocaleTimeString() });
-            window.open(`https://wa.me/${config.ws}?text=*NUEVO PEDIDO CAIFU*%0A*Cliente:* ${client.name}%0A*Items:* ${items}%0A*TOTAL:* $${total.toLocaleString()}`, '_blank');
+            window.open(`https://wa.me/${config.ws}?text=*NUEVO PEDIDO CAIFU*%0A*Items:* ${items}%0A*TOTAL:* $${total.toLocaleString()}`, '_blank');
             setCart([]); setIsCartOpen(false); setDelivery(null);
-            alert("¡Pedido enviado! SIUUU 🚀");
+            alert("¡Pedido enviado! SIIIUUU 🚀");
         };
 
         const currentTotal = cart.reduce((a,b)=>a+(b.price*b.qty),0);
@@ -148,17 +146,7 @@
         if(isAdmin) return <AdminPanel config={config} menuData={menuData} orders={orders} onExit={()=>setIsAdmin(false)} />;
 
         return (
-            <div className="client-body min-h-screen text-white pb-32">
-                {showBanner && !isAdmin && (
-                    <div className="install-banner">
-                        <div className="flex items-center gap-3">
-                            <img src="https://raw.githubusercontent.com/andrescaifucardenas-hue/CAIFU/main/logo.png.png" className="w-10 h-10 border border-[#d4af37] rounded-lg" />
-                            <span className="text-[10px] font-black gold-text uppercase">Instalar App</span>
-                        </div>
-                        <button onClick={()=>{ if(deferredPrompt.current) deferredPrompt.current.prompt(); }} className="gold-bg px-4 py-2 rounded-xl text-[10px] font-black uppercase">Descargar</button>
-                    </div>
-                )}
-
+            <div className="client-body min-h-screen text-white">
                 {view === 'home' ? (
                     <div className="h-screen flex flex-col justify-between p-10 relative overflow-hidden text-center">
                         <div className="carousel-wrapper absolute inset-0">
@@ -172,15 +160,15 @@
                         <button onClick={()=>setView('menu')} className="z-10 w-full gold-bg py-6 rounded-full font-black text-xl uppercase shadow-2xl">Ver Menú</button>
                     </div>
                 ) : (
-                    <div className="animate-fade-in">
+                    <div className="animate-fade-in pb-32">
                         <header className="sticky top-0 bg-black/80 backdrop-blur-xl p-5 border-b border-white/10 flex justify-between items-center z-50">
                             <button onClick={()=>setView('home')} className="p-2 bg-white/10 rounded-full">🏠</button>
-                            <span className="font-black italic gold-text uppercase text-sm tracking-widest">MENU CAIFU</span>
+                            <span className="font-black italic gold-text uppercase text-sm tracking-widest">CAIFU MASTER</span>
                             <button onClick={()=>setIsCartOpen(true)} className="relative p-2 gold-bg rounded-full shadow-lg">🛒 {cart.length > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-black">{cart.reduce((a,b)=>a+b.qty,0)}</span>}</button>
                         </header>
                         <div className="category-bar flex overflow-x-auto no-scrollbar p-3 gap-3">
                             {Object.keys(menuData).map(cat => (
-                                <button key={cat} onClick={()=>document.getElementById(cat).scrollIntoView({behavior:'smooth', block:'start'})} className="px-5 py-2 rounded-full bg-white/5 border border-white/10 text-[10px] font-black uppercase gold-text active:gold-bg transition-all">{cat}</button>
+                                <button key={cat} onClick={()=>document.getElementById(cat).scrollIntoView({behavior:'smooth', block:'start'})} className="px-5 py-2 rounded-full bg-white/5 border border-white/10 text-[10px] font-black uppercase gold-text transition-all">{cat}</button>
                             ))}
                         </div>
                         <main className="p-6 space-y-12">
@@ -201,7 +189,7 @@
                                                             const ex = cart.find(x => x.id === i.id);
                                                             if(ex) setCart(cart.map(x=>x.id===i.id?{...x,qty:x.qty+1}:x));
                                                             else setCart([...cart, {...i, qty:1}]);
-                                                        }} className="gold-bg p-3 rounded-2xl active:scale-90 transition shadow-lg">+</button>
+                                                        }} className="gold-bg p-3 rounded-2xl active:scale-90 transition">+</button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -213,19 +201,19 @@
                     </div>
                 )}
 
-                {/* BARRA DE TOTAL DINÁMICA */}
-                {cart.length > 0 && !isCartOpen && view === 'menu' && (
+                {/* BARRA PREMIUM REFORZADA - AFUERA DE TODO */}
+                {cart.length > 0 && !isCartOpen && !isAdmin && (
                     <div className="quick-total-bar">
                         <div className="flex flex-col">
-                            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Total Parcial</span>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Tu Pedido</span>
                             <span className="text-2xl font-black gold-text italic">${currentTotal.toLocaleString()}</span>
                         </div>
-                        <button onClick={()=>setIsCartOpen(true)} className="gold-bg px-8 py-3 rounded-2xl font-black text-[11px] uppercase shadow-lg animate-pulse">Ver Pedido 🛒</button>
+                        <button onClick={()=>setIsCartOpen(true)} className="gold-bg px-8 py-3 rounded-2xl font-black text-[12px] uppercase shadow-lg active:scale-95 transition-all">Ver Carrito 🛒</button>
                     </div>
                 )}
 
                 {isCartOpen && (
-                    <div className="fixed inset-0 bg-black/95 z-[1100] flex items-end animate-fade-in text-white">
+                    <div className="fixed inset-0 bg-black/95 z-[3000] flex items-end animate-fade-in text-white">
                         <div className="bg-zinc-900 w-full rounded-t-[3.5rem] p-10 max-h-[96vh] overflow-y-auto no-scrollbar shadow-2xl border-t border-white/10">
                             <div className="flex justify-between items-center mb-8"><h2 className="text-4xl font-black italic gold-text uppercase">Pedido</h2><button onClick={()=>setIsCartOpen(false)} className="text-white text-2xl">✕</button></div>
                             <div className="space-y-6">
@@ -247,21 +235,21 @@
                                     <input id="mesaFinal" placeholder="N° de Mesa" type="number" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black" />
                                 ) : (
                                     <div className="space-y-4">
-                                        <input placeholder="Dirección exacta" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black" value={client.address} onChange={e=>setClient({...client, address:e.target.value})} />
+                                        <input placeholder="Dirección de entrega" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black" value={client.address} onChange={e=>setClient({...client, address:e.target.value})} />
                                         <button onClick={calcGPS} className="w-full gold-bg py-4 rounded-2xl font-black uppercase text-[10px] shadow-lg">📍 CALCULAR ENVÍO (GPS)</button>
-                                        {delivery !== null && <p className="text-center font-black gold-text text-[10px] uppercase">{typeof delivery === 'number' ? `Tarifa: $${delivery.toLocaleString()}` : delivery}</p>}
+                                        {delivery !== null && <p className="text-center font-black gold-text text-[10px] uppercase">{typeof delivery === 'number' ? `Costo Envío: $${delivery.toLocaleString()}` : delivery}</p>}
                                     </div>
                                 )}
                                 <div className="flex justify-between items-center text-4xl font-black gold-text pt-6 border-t border-dashed border-white/10 italic">
                                     <span className="text-white text-lg not-italic font-bold uppercase tracking-widest">Total</span>
                                     <span>${(currentTotal + (typeof delivery === 'number' ? delivery : 0)).toLocaleString()}</span>
                                 </div>
-                                <button onClick={handleSend} disabled={!client.name || (client.type==='Domicilio' && typeof delivery !== 'number') || cart.length === 0} className="w-full py-6 rounded-full gold-bg font-black text-xl uppercase shadow-2xl transition-all">FINALIZAR PEDIDO</button>
+                                <button onClick={handleSend} disabled={!client.name || (client.type==='Domicilio' && typeof delivery !== 'number') || cart.length === 0} className="w-full py-6 rounded-full gold-bg font-black text-xl uppercase shadow-2xl transition-all">ENVIAR PEDIDO</button>
                             </div>
                         </div>
                     </div>
                 )}
-                {loadingLoc && <div className="fixed inset-0 bg-black/80 z-[2000] flex items-center justify-center font-black gold-text animate-pulse uppercase tracking-widest text-[10px]">Calculando GPS...</div>}
+                {loadingLoc && <div className="fixed inset-0 bg-black/80 z-[4000] flex items-center justify-center font-black gold-text animate-pulse uppercase tracking-widest text-[10px]">Sincronizando...</div>}
             </div>
         );
     };
@@ -273,26 +261,24 @@
         const [load, setLoad] = useState(false);
 
         const deleteHistory = () => {
-            if(confirm("¿Estás seguro de borrar todo el historial? Esto no se puede deshacer.")){
-                db.ref('orders').remove()
-                    .then(() => alert("Historial borrado con éxito ✅"))
-                    .catch(e => alert("Error al borrar: " + e.message));
+            if(confirm("¿Seguro que quieres BORRAR TODO el historial?")){
+                db.ref('orders').remove().then(() => alert("Historial Limpiado ✅"));
             }
         };
 
         if(!auth) return (
             <div className="admin-view flex flex-col items-center justify-center p-10 text-center text-white min-h-screen">
                 <img src="https://raw.githubusercontent.com/andrescaifucardenas-hue/CAIFU/main/logo.png.png" className="w-24 mb-6" />
-                <h2 className="text-2xl font-black gold-text mb-8 uppercase italic tracking-widest">ADMIN v870</h2>
-                <button onClick={()=>setAuth(true)} className="gold-bg w-full py-6 rounded-[2rem] font-black uppercase text-xl shadow-2xl">Entrar al Sistema</button>
+                <h2 className="text-2xl font-black gold-text mb-8 uppercase italic tracking-widest">ADMIN v880</h2>
+                <button onClick={()=>setAuth(true)} className="gold-bg w-full py-6 rounded-[2rem] font-black uppercase text-xl shadow-2xl">Entrar</button>
             </div>
         );
 
         return (
             <div className="admin-view p-5 pb-24 text-white animate-fade-in min-h-screen">
                 <div className="flex justify-between items-center mb-6 pb-4 border-b border-white/10">
-                    <h2 className="text-xl font-black gold-text italic uppercase">Panel v870</h2>
-                    <button onClick={onExit} className="bg-red-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase">Salir</button>
+                    <h2 className="text-xl font-black gold-text italic uppercase">Panel v880</h2>
+                    <button onClick={onExit} className="bg-red-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase shadow-lg">Salir</button>
                 </div>
                 <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2">
                     {['inbox', 'historial', 'menu', 'carrusel', 'gps', 'ajustes'].map(t => (
@@ -306,11 +292,8 @@
                             <div key={o.fid} className="p-5 rounded-[2.5rem] bg-zinc-900 border border-zinc-800 border-l-4 border-l-yellow-500 shadow-xl">
                                 <div className="flex justify-between text-yellow-500 font-black text-[10px] mb-2 uppercase"><span>{o.name}</span><span>{o.time}</span></div>
                                 <p className="text-sm font-black mb-4 uppercase">{o.items}</p>
-                                <div className="text-[10px] bg-black/40 p-3 rounded-2xl mb-4 text-zinc-400 font-bold uppercase leading-relaxed">
-                                    Pago: {o.payment} | {o.table ? `MESA: ${o.table}` : `DIR: ${o.address}`}
-                                </div>
+                                <div className="text-[10px] bg-black/40 p-3 rounded-2xl mb-4 text-zinc-400 font-bold uppercase">Pago: {o.payment} | {o.table ? `MESA: ${o.table}` : `DIR: ${o.address}`}</div>
                                 <div className="flex justify-between items-center pt-2 border-t border-zinc-800 mb-4">
-                                    <span className="text-[10px] font-bold text-zinc-500 uppercase">Cobrar Total:</span>
                                     <span className="text-xl font-black text-green-500 italic">$ {o.total?.toLocaleString()}</span>
                                 </div>
                                 <div className="flex gap-2">
@@ -323,8 +306,8 @@
                 )}
 
                 {tab === 'historial' && (
-                    <div className="space-y-4 animate-fade-in">
-                        <button onClick={deleteHistory} className="w-full py-4 bg-red-900/50 border border-red-500 text-red-100 text-[10px] font-black rounded-2xl mb-6 uppercase tracking-widest shadow-lg">🗑️ BORRAR TODO EL HISTORIAL</button>
+                    <div className="space-y-4">
+                        <button onClick={deleteHistory} className="w-full py-4 bg-red-900/40 border border-red-500 text-red-100 text-[10px] font-black rounded-2xl mb-6 uppercase tracking-widest">🗑️ BORRAR TODO EL HISTORIAL</button>
                         {orders.filter(o => o.status !== 'pending').map(o => (
                             <div key={o.fid} className="p-5 bg-zinc-900 rounded-3xl border border-zinc-800 opacity-80">
                                 <div className="flex justify-between items-center mb-2"><span className={`text-[10px] font-black uppercase ${o.status==='done'?'text-green-500':'text-red-500'}`}>{o.status}</span><span className="text-[9px] text-zinc-500">{o.time}</span></div>
@@ -334,7 +317,6 @@
                         ))}
                     </div>
                 )}
-
                 {tab === 'menu' && (
                     <div className="space-y-4">
                         <button onClick={()=>{const c=prompt("Categoría:"); if(c) db.ref(`menu/${c.toUpperCase()}`).set([{id:Date.now(), name:"PLATO NUEVO", price:0}]);}} className="w-full bg-green-600 py-3 rounded-xl font-black text-xs uppercase shadow-lg">+ CATEGORÍA</button>
@@ -349,7 +331,6 @@
                         ))}
                     </div>
                 )}
-
                 {tab === 'carrusel' && (
                     <div className="space-y-4">
                         <input type="file" onChange={e=>{
@@ -365,12 +346,11 @@
                         </div>
                     </div>
                 )}
-
                 {tab === 'gps' && (
                     <div className="space-y-4">
-                        <button onClick={()=>navigator.geolocation.getCurrentPosition(p=>{ db.ref('config/loc').set({lat:p.coords.latitude, lng:p.coords.longitude}); alert("Local fijado con éxito"); }, null, {enableHighAccuracy:true})} className="w-full bg-blue-600 py-4 rounded-2xl font-black text-xs shadow-lg uppercase tracking-widest">📍 FIJAR LOCAL AQUÍ</button>
+                        <button onClick={()=>navigator.geolocation.getCurrentPosition(p=>{ db.ref('config/loc').set({lat:p.coords.latitude, lng:p.coords.longitude}); alert("Local fijado!"); }, null, {enableHighAccuracy:true})} className="w-full bg-blue-600 py-4 rounded-2xl font-black text-xs shadow-lg uppercase tracking-widest">📍 FIJAR LOCAL AQUÍ</button>
                         <div className="p-5 bg-zinc-900 rounded-[2.5rem] border border-zinc-800 shadow-xl">
-                            <h3 className="text-[10px] font-black uppercase text-zinc-500 mb-4 italic">Zonas y Precios</h3>
+                            <h3 className="text-[10px] font-black uppercase text-zinc-500 italic mb-4">Zonas y Precios</h3>
                             <button onClick={()=>db.ref('config/zones').push({id:Date.now(), label:"Zona", km:1, price:1000})} className="bg-green-600 w-full py-2 rounded-xl mb-4 font-bold shadow-md">+</button>
                             {(config.zones ? Object.keys(config.zones).map(k => ({...config.zones[k], zid: k})) : []).map((z, i) => (
                                 <div key={z.zid} className="bg-zinc-800/50 p-4 rounded-3xl mb-3 border border-zinc-700">
@@ -385,11 +365,10 @@
                         </div>
                     </div>
                 )}
-
                 {tab === 'ajustes' && (
                     <div className="p-6 bg-zinc-900 rounded-[3rem] border border-zinc-800 shadow-xl space-y-8 text-white">
                         <div>
-                            <h3 className="text-[10px] font-black uppercase text-zinc-500 mb-4 italic">WhatsApp Negocio (57...)</h3>
+                            <h3 className="text-[10px] font-black uppercase text-zinc-500 mb-4 italic">WhatsApp (57...)</h3>
                             <input value={config.ws} onChange={e=>db.ref('config/ws').set(e.target.value)} className="w-full bg-black/50 p-4 rounded-xl text-white font-black border border-zinc-700 outline-none" />
                         </div>
                         <div>
@@ -401,9 +380,8 @@
                         </div>
                     </div>
                 )}
-
                 {editing && (
-                    <div className="fixed inset-0 bg-black/98 flex items-center justify-center p-6 z-[2000] animate-fade-in text-zinc-900">
+                    <div className="fixed inset-0 bg-black/98 flex items-center justify-center p-6 z-[4000] animate-fade-in text-zinc-900">
                         <div className="bg-white p-8 rounded-[3rem] w-full max-w-sm space-y-4 shadow-2xl overflow-y-auto max-h-[90vh] no-scrollbar">
                             <div className="w-full aspect-square bg-zinc-100 rounded-[2.5rem] overflow-hidden relative border-2 border-dashed flex items-center justify-center">
                                 {editing.img ? <img src={editing.img} className="w-full h-full object-cover" /> : <span className="text-3xl">📷</span>}
@@ -428,7 +406,7 @@
                         </div>
                     </div>
                 )}
-                {load && <div className="fixed inset-0 bg-black/90 z-[3000] flex items-center justify-center font-black gold-text animate-pulse uppercase tracking-widest text-[10px]">SINCRO...</div>}
+                {load && <div className="fixed inset-0 bg-black/90 z-[5000] flex items-center justify-center font-black gold-text animate-pulse uppercase tracking-widest text-[10px]">SINCRO...</div>}
             </div>
         );
     };
