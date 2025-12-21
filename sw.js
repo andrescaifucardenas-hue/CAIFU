@@ -1,5 +1,5 @@
 // Cambia la primera línea a v900
-const CACHE_NAME = 'caifu-v900-persistent';
+const CACHE_NAME = 'caifu-v920';
 const urlsToCache = [ './', './index.html' ];
 
 self.addEventListener('install', e => {
