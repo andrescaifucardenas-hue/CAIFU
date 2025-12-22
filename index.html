@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CAIFU MASTER v940</title>
+    <title>CAIFU MASTER v950</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#7f1d1d">
@@ -27,25 +27,23 @@
         #master-loader { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.8s ease; }
         .splash-logo { width: 140px; animation: pulseLogo 2s infinite alternate; }
         @keyframes pulseLogo { from { transform: scale(0.95); opacity: 0.8; } to { transform: scale(1.05); opacity: 1; } }
+        .carousel-wrapper { position: absolute; inset: 0; z-index: 0; }
+        .carousel-slide { position: absolute; inset: 0; background-size: cover; background-position: center; transition: opacity 1.2s ease-in-out; opacity: 0; z-index: 1; }
+        .carousel-slide.active { opacity: 1; z-index: 2; }
+        .bg-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.9) 100%); z-index: 3; pointer-events: none; }
+        .home-content { position: relative; z-index: 10; }
         .item-card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(212, 175, 55, 0.2); backdrop-filter: blur(10px); border-radius: 2rem; }
         .category-bar { position: sticky; top: 70px; z-index: 40; background: rgba(0,0,0,0.9); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(212, 175, 55, 0.3); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .quick-total-bar { position: fixed; bottom: 20px; left: 15px; right: 15px; background: rgba(15, 15, 15, 0.98); border: 1px solid #d4af37; border-radius: 1.5rem; padding: 18px 25px; display: flex; align-items: center; justify-content: space-between; z-index: 2000; backdrop-filter: blur(20px); box-shadow: 0 15px 40px rgba(0,0,0,0.9); animation: slideUpBar 0.5s ease-out; }
         @keyframes slideUpBar { from { transform: translateY(150%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .install-banner { position: fixed; bottom: 95px; left: 20px; right: 20px; background: rgba(20, 20, 20, 0.98); border: 1px solid #d4af37; border-radius: 1.5rem; padding: 15px; display: flex; align-items: center; justify-content: space-between; z-index: 2500; backdrop-filter: blur(15px); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        
-        /* CORRECCIÓN CARRUSEL v940 */
-        .carousel-wrapper { position: absolute; inset: 0; z-index: 0; }
-        .carousel-slide { position: absolute; inset: 0; background-size: cover; background-position: center; transition: opacity 1.2s ease-in-out; opacity: 0; z-index: 1; }
-        .carousel-slide.active { opacity: 1; z-index: 2; } /* Opacidad total al activo */
-        .bg-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.9) 100%); z-index: 3; pointer-events: none; } /* Overlay más sutil */
-        .home-content { position: relative; z-index: 10; } /* Asegura que el texto esté al frente */
     </style>
 </head>
 <body>
     <div id="master-loader">
         <img src="https://raw.githubusercontent.com/andrescaifucardenas-hue/CAIFU/main/logo.png.png" class="splash-logo">
-        <div style="margin-top: 20px; font-weight: 800; color: #d4af37; letter-spacing: 5px; font-size: 10px; border-top: 1px solid #d4af37; padding-top: 10px;">CARRUSEL FIX v940</div>
+        <div style="margin-top: 20px; font-weight: 800; color: #d4af37; letter-spacing: 5px; font-size: 10px; border-top: 1px solid #d4af37; padding-top: 10px;">iOS READY v950</div>
     </div>
     <div id="root"></div>
 
@@ -103,10 +101,23 @@
         const [loadingLoc, setLoadingLoc] = useState(false);
         const [showBanner, setShowBanner] = useState(false);
         const deferredPrompt = useRef(null);
+        
+        // --- iOS LÓGICA ---
+        // Detectar si es iOS (iPhone/iPad)
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        // Detectar si ya está instalado (modo standalone)
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
 
         useEffect(() => {
+            // Lógica para Android (evento automático)
             const handlePrompt = (e) => { e.preventDefault(); deferredPrompt.current = e; setShowBanner(true); };
             window.addEventListener('beforeinstallprompt', handlePrompt);
+            
+            // Lógica para iOS (forzar el banner si no está instalado)
+            if (isIOS && !isStandalone && !isAdmin) {
+                setShowBanner(true);
+            }
+
             db.ref('config').on('value', s => {
                 if(s.exists()){
                     const c = s.val(); setConfig(c);
@@ -154,6 +165,18 @@
             setCart([]); setIsCartOpen(false); setDelivery(null); setClient({ name: "", address: "", notes: "", payment: "Efectivo", type: "Domicilio" });
         };
 
+        // --- iOS LÓGICA DE INSTALACIÓN ---
+        const handleInstallClick = () => {
+            if (isIOS) {
+                // Instrucciones específicas para iPhone
+                alert("👇 Para instalar en iPhone:\n\n1️⃣ Toca el botón 'Compartir' (el cuadrado con la flecha hacia arriba) en la barra inferior de Safari.\n\n2️⃣ Desliza hacia abajo en el menú y selecciona la opción 'Agregar al Inicio' (+).");
+            } else if (deferredPrompt.current) {
+                // Lógica estándar para Android
+                deferredPrompt.current.prompt();
+                deferredPrompt.current.userChoice.then(() => { setShowBanner(false); deferredPrompt.current = null; });
+            }
+        };
+
         const currentTotal = cart.reduce((a,b)=>a+(b.price*b.qty),0);
 
         if(isAdmin) return <AdminPanel config={config} menuData={menuData} orders={orders} onExit={()=>setIsAdmin(false)} />;
@@ -164,10 +187,13 @@
                     <div className="install-banner">
                         <div className="flex items-center gap-3">
                             <img src="https://raw.githubusercontent.com/andrescaifucardenas-hue/CAIFU/main/logo.png.png" className="w-10 h-10 border border-[#d4af37] rounded-lg" />
-                            <div className="flex flex-col"><span className="text-[10px] font-black gold-text uppercase">Instalar App CAIFU</span><span className="text-[8px] text-zinc-500">Pide más rápido</span></div>
+                            <div className="flex flex-col"><span className="text-[10px] font-black gold-text uppercase">Instalar App CAIFU</span><span className="text-[8px] text-zinc-500">Acceso directo</span></div>
                         </div>
                         <div className="flex gap-2">
-                            <button onClick={()=>{ if(deferredPrompt.current) deferredPrompt.current.prompt(); }} className="gold-bg px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-lg">Instalar</button>
+                            {/* Botón dinámico según el sistema operativo */}
+                            <button onClick={handleInstallClick} className="gold-bg px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95 transition-all">
+                                {isIOS ? "Ver Cómo" : "Instalar"}
+                            </button>
                             <button onClick={()=>setShowBanner(false)} className="text-zinc-500 px-2 text-xl">✕</button>
                         </div>
                     </div>
@@ -187,7 +213,7 @@
                                 <h1 className="text-6xl font-black italic gold-text tracking-tighter uppercase">Caifu</h1>
                              </div>
                             <div>
-                                <button onClick={()=>setView('menu')} className="w-full gold-bg py-6 rounded-full font-black text-xl uppercase shadow-2xl">Ver Menú v940</button>
+                                <button onClick={()=>setView('menu')} className="w-full gold-bg py-6 rounded-full font-black text-xl uppercase shadow-2xl">Ver Menú v950</button>
                             </div>
                         </div>
                     </div>
@@ -195,7 +221,7 @@
                     <div className="animate-fade-in pb-32">
                         <header className="sticky top-0 bg-black/80 backdrop-blur-xl p-5 border-b border-white/10 flex justify-between items-center z-50">
                             <button onClick={()=>setView('home')} className="p-2 bg-white/10 rounded-full">🏠</button>
-                            <span className="font-black italic gold-text uppercase text-sm tracking-widest">CAIFU v940</span>
+                            <span className="font-black italic gold-text uppercase text-sm tracking-widest">CAIFU v950</span>
                             <button onClick={()=>setIsCartOpen(true)} className="relative p-2 gold-bg rounded-full shadow-lg">🛒 {cart.length > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-black">{cart.reduce((a,b)=>a+b.qty,0)}</span>}</button>
                         </header>
                         <div className="category-bar flex overflow-x-auto no-scrollbar p-3 gap-3">
@@ -310,7 +336,7 @@
         if(!auth) return (
             <div className="admin-view flex flex-col items-center justify-center p-10 text-center text-white min-h-screen">
                 <img src="https://raw.githubusercontent.com/andrescaifucardenas-hue/CAIFU/main/logo.png.png" className="w-24 mb-6" />
-                <h2 className="text-2xl font-black gold-text mb-8 uppercase italic tracking-widest">ADMIN CAIFU v940</h2>
+                <h2 className="text-2xl font-black gold-text mb-8 uppercase italic tracking-widest">ADMIN CAIFU v950</h2>
                 <button onClick={()=>setAuth(true)} className="gold-bg w-full py-6 rounded-[2rem] font-black uppercase text-xl shadow-2xl">Entrar</button>
             </div>
         );
@@ -318,7 +344,7 @@
         return (
             <div className="admin-view p-5 pb-24 text-white animate-fade-in min-h-screen">
                 <div className="flex justify-between items-center mb-6 pb-4 border-b border-white/10">
-                    <h2 className="text-xl font-black gold-text italic uppercase">Panel v940</h2>
+                    <h2 className="text-xl font-black gold-text italic uppercase">Panel v950</h2>
                     <button onClick={onExit} className="bg-red-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase shadow-lg">Salir</button>
                 </div>
                 <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2">
