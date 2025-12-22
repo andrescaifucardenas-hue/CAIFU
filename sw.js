@@ -1,5 +1,5 @@
 // Cambia la primera línea a v900
-const CACHE_NAME = 'caifu-v950-ios';
+const CACHE_NAME = 'caifu-v960-horario';
 const urlsToCache = [ './', './index.html' ];
 
 self.addEventListener('install', e => {
