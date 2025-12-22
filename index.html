@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CAIFU MASTER v950</title>
+    <title>CAIFU MASTER v960</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#7f1d1d">
@@ -43,7 +43,7 @@
 <body>
     <div id="master-loader">
         <img src="https://raw.githubusercontent.com/andrescaifucardenas-hue/CAIFU/main/logo.png.png" class="splash-logo">
-        <div style="margin-top: 20px; font-weight: 800; color: #d4af37; letter-spacing: 5px; font-size: 10px; border-top: 1px solid #d4af37; padding-top: 10px;">iOS READY v950</div>
+        <div style="margin-top: 20px; font-weight: 800; color: #d4af37; letter-spacing: 5px; font-size: 10px; border-top: 1px solid #d4af37; padding-top: 10px;">HORARIO BLINDADO v960</div>
     </div>
     <div id="root"></div>
 
@@ -102,18 +102,13 @@
         const [showBanner, setShowBanner] = useState(false);
         const deferredPrompt = useRef(null);
         
-        // --- iOS LÓGICA ---
-        // Detectar si es iOS (iPhone/iPad)
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        // Detectar si ya está instalado (modo standalone)
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
 
         useEffect(() => {
-            // Lógica para Android (evento automático)
             const handlePrompt = (e) => { e.preventDefault(); deferredPrompt.current = e; setShowBanner(true); };
             window.addEventListener('beforeinstallprompt', handlePrompt);
             
-            // Lógica para iOS (forzar el banner si no está instalado)
             if (isIOS && !isStandalone && !isAdmin) {
                 setShowBanner(true);
             }
@@ -121,7 +116,9 @@
             db.ref('config').on('value', s => {
                 if(s.exists()){
                     const c = s.val(); setConfig(c);
-                    const hr = new Date().getHours(); setIsOpenNow(hr >= (c.open || 0) && hr < (c.close || 24));
+                    // LÓGICA DEL HORARIO
+                    const hr = new Date().getHours();
+                    setIsOpenNow(hr >= (c.open || 0) && hr < (c.close || 24));
                 }
             });
             db.ref('menu').on('value', s => s.exists() && setMenuData(s.val()));
@@ -165,13 +162,10 @@
             setCart([]); setIsCartOpen(false); setDelivery(null); setClient({ name: "", address: "", notes: "", payment: "Efectivo", type: "Domicilio" });
         };
 
-        // --- iOS LÓGICA DE INSTALACIÓN ---
         const handleInstallClick = () => {
             if (isIOS) {
-                // Instrucciones específicas para iPhone
                 alert("👇 Para instalar en iPhone:\n\n1️⃣ Toca el botón 'Compartir' (el cuadrado con la flecha hacia arriba) en la barra inferior de Safari.\n\n2️⃣ Desliza hacia abajo en el menú y selecciona la opción 'Agregar al Inicio' (+).");
             } else if (deferredPrompt.current) {
-                // Lógica estándar para Android
                 deferredPrompt.current.prompt();
                 deferredPrompt.current.userChoice.then(() => { setShowBanner(false); deferredPrompt.current = null; });
             }
@@ -190,7 +184,6 @@
                             <div className="flex flex-col"><span className="text-[10px] font-black gold-text uppercase">Instalar App CAIFU</span><span className="text-[8px] text-zinc-500">Acceso directo</span></div>
                         </div>
                         <div className="flex gap-2">
-                            {/* Botón dinámico según el sistema operativo */}
                             <button onClick={handleInstallClick} className="gold-bg px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95 transition-all">
                                 {isIOS ? "Ver Cómo" : "Instalar"}
                             </button>
@@ -213,7 +206,7 @@
                                 <h1 className="text-6xl font-black italic gold-text tracking-tighter uppercase">Caifu</h1>
                              </div>
                             <div>
-                                <button onClick={()=>setView('menu')} className="w-full gold-bg py-6 rounded-full font-black text-xl uppercase shadow-2xl">Ver Menú v950</button>
+                                <button onClick={()=>setView('menu')} className="w-full gold-bg py-6 rounded-full font-black text-xl uppercase shadow-2xl">Ver Menú v960</button>
                             </div>
                         </div>
                     </div>
@@ -221,7 +214,7 @@
                     <div className="animate-fade-in pb-32">
                         <header className="sticky top-0 bg-black/80 backdrop-blur-xl p-5 border-b border-white/10 flex justify-between items-center z-50">
                             <button onClick={()=>setView('home')} className="p-2 bg-white/10 rounded-full">🏠</button>
-                            <span className="font-black italic gold-text uppercase text-sm tracking-widest">CAIFU v950</span>
+                            <span className="font-black italic gold-text uppercase text-sm tracking-widest">CAIFU v960</span>
                             <button onClick={()=>setIsCartOpen(true)} className="relative p-2 gold-bg rounded-full shadow-lg">🛒 {cart.length > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-black">{cart.reduce((a,b)=>a+b.qty,0)}</span>}</button>
                         </header>
                         <div className="category-bar flex overflow-x-auto no-scrollbar p-3 gap-3">
@@ -243,11 +236,15 @@
                                                     <h3 className="font-black text-sm uppercase">{i.name}</h3>
                                                     <div className="flex justify-between items-center mt-3">
                                                         <span className="gold-text font-black text-xl italic">${i.price.toLocaleString()}</span>
+                                                        {isOpenNow ? (
                                                         <button onClick={()=>{
                                                             const ex = cart.find(x => x.id === i.id);
                                                             if(ex) setCart(cart.map(x=>x.id===i.id?{...x,qty:x.qty+1}:x));
                                                             else setCart([...cart, {...i, qty:1}]);
                                                         }} className="gold-bg p-3 rounded-2xl active:scale-90 transition shadow-lg">+</button>
+                                                        ) : (
+                                                            <span className="text-[10px] text-red-500 font-black uppercase">Cerrado</span>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -273,42 +270,57 @@
                     <div className="fixed inset-0 bg-black/95 z-[3000] flex items-end animate-fade-in text-white">
                         <div className="bg-zinc-900 w-full rounded-t-[3.5rem] p-10 max-h-[96vh] overflow-y-auto no-scrollbar shadow-2xl border-t border-white/10">
                             <div className="flex justify-between items-center mb-8"><h2 className="text-4xl font-black italic gold-text uppercase">Pedido</h2><button onClick={()=>setIsCartOpen(false)} className="text-white text-2xl">✕</button></div>
-                            <div className="space-y-6">
-                                <div className="bg-black/40 p-4 rounded-[2rem] border border-white/5 space-y-3">
-                                    {cart.map(i => (
-                                        <div key={i.id} className="flex justify-between items-center border-b border-white/5 last:border-0 pb-3 mt-1">
-                                            <div className="flex flex-col"><span className="font-black text-xs uppercase italic text-white">{i.qty}x {i.name}</span><span className="text-[10px] gold-text font-black">${(i.price*i.qty).toLocaleString()}</span></div>
-                                            <button onClick={()=>setCart(cart.filter(x=>x.id!==i.id))} className="text-zinc-600 text-xl">🗑️</button>
-                                        </div>
-                                    ))}
-                                </div>
-                                <input placeholder="Tu Nombre" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl font-black text-white outline-none focus:border-[#d4af37]" value={client.name} onChange={e=>setClient({...client, name:e.target.value})} />
-                                <div className="flex gap-2">
-                                    {['Domicilio', 'Mesa'].map(t => (
-                                        <button key={t} onClick={()=>setClient({...client, type:t})} className={`flex-1 py-4 rounded-2xl font-black ${client.type===t?'gold-bg':'bg-white/5 text-zinc-500'}`}>{t}</button>
-                                    ))}
-                                </div>
-                                {client.type==='Mesa' ? (
-                                    <input id="mesaFinal" placeholder="N° de Mesa" type="number" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black" />
-                                ) : (
-                                    <div className="space-y-4">
-                                        <input placeholder="Dirección exacta" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black outline-none" value={client.address} onChange={e=>setClient({...client, address:e.target.value})} />
-                                        <button onClick={calcGPS} className="w-full gold-bg py-4 rounded-2xl font-black uppercase text-[10px] shadow-lg">📍 CALCULAR ENVÍO (GPS)</button>
-                                        {delivery !== null && <p className="text-center font-black gold-text text-[10px] uppercase tracking-widest">{typeof delivery === 'number' ? `Costo Envío: $${delivery.toLocaleString()}` : delivery}</p>}
+                            
+                            {/* --- AQUÍ ESTÁ LA CORRECCIÓN DEL HORARIO --- */}
+                            {isOpenNow ? (
+                                // SI ESTÁ ABIERTO: Muestra el carrito normal
+                                <div className="space-y-6 animate-fade-in">
+                                    <div className="bg-black/40 p-4 rounded-[2rem] border border-white/5 space-y-3">
+                                        {cart.map(i => (
+                                            <div key={i.id} className="flex justify-between items-center border-b border-white/5 last:border-0 pb-3 mt-1">
+                                                <div className="flex flex-col"><span className="font-black text-xs uppercase italic text-white">{i.qty}x {i.name}</span><span className="text-[10px] gold-text font-black">${(i.price*i.qty).toLocaleString()}</span></div>
+                                                <button onClick={()=>setCart(cart.filter(x=>x.id!==i.id))} className="text-zinc-600 text-xl">🗑️</button>
+                                            </div>
+                                        ))}
                                     </div>
-                                )}
-                                <div className="flex gap-2">
-                                    {['Efectivo', 'Nequi', 'Daviplata'].map(p => (
-                                        <button key={p} onClick={()=>setClient({...client, payment:p})} className={`flex-1 py-3 rounded-xl font-black text-[9px] ${client.payment===p?'gold-bg':'bg-white/5 text-zinc-500'}`}>{p}</button>
-                                    ))}
+                                    <input placeholder="Tu Nombre" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl font-black text-white outline-none focus:border-[#d4af37]" value={client.name} onChange={e=>setClient({...client, name:e.target.value})} />
+                                    <div className="flex gap-2">
+                                        {['Domicilio', 'Mesa'].map(t => (
+                                            <button key={t} onClick={()=>setClient({...client, type:t})} className={`flex-1 py-4 rounded-2xl font-black ${client.type===t?'gold-bg':'bg-white/5 text-zinc-500'}`}>{t}</button>
+                                        ))}
+                                    </div>
+                                    {client.type==='Mesa' ? (
+                                        <input id="mesaFinal" placeholder="N° de Mesa" type="number" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black" />
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <input placeholder="Dirección exacta" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black outline-none" value={client.address} onChange={e=>setClient({...client, address:e.target.value})} />
+                                            <button onClick={calcGPS} className="w-full gold-bg py-4 rounded-2xl font-black uppercase text-[10px] shadow-lg">📍 CALCULAR ENVÍO (GPS)</button>
+                                            {delivery !== null && <p className="text-center font-black gold-text text-[10px] uppercase tracking-widest">{typeof delivery === 'number' ? `Costo Envío: $${delivery.toLocaleString()}` : delivery}</p>}
+                                        </div>
+                                    )}
+                                    <div className="flex gap-2">
+                                        {['Efectivo', 'Nequi', 'Daviplata'].map(p => (
+                                            <button key={p} onClick={()=>setClient({...client, payment:p})} className={`flex-1 py-3 rounded-xl font-black text-[9px] ${client.payment===p?'gold-bg':'bg-white/5 text-zinc-500'}`}>{p}</button>
+                                        ))}
+                                    </div>
+                                    <textarea placeholder="Notas adicionales..." className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white h-20 outline-none" value={client.notes} onChange={e=>setClient({...client, notes:e.target.value})} />
+                                    <div className="flex justify-between items-center text-4xl font-black gold-text pt-6 border-t border-dashed border-white/10 italic">
+                                        <span className="text-white text-lg font-bold uppercase tracking-widest">Total</span>
+                                        <span>${(currentTotal + (typeof delivery === 'number' ? delivery : 0)).toLocaleString()}</span>
+                                    </div>
+                                    <button onClick={handleSend} disabled={!client.name || (client.type==='Domicilio' && typeof delivery !== 'number') || cart.length === 0} className="w-full py-6 rounded-full gold-bg font-black text-xl uppercase shadow-2xl transition-all">ENVIAR PEDIDO</button>
                                 </div>
-                                <textarea placeholder="Notas adicionales..." className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white h-20 outline-none" value={client.notes} onChange={e=>setClient({...client, notes:e.target.value})} />
-                                <div className="flex justify-between items-center text-4xl font-black gold-text pt-6 border-t border-dashed border-white/10 italic">
-                                    <span className="text-white text-lg font-bold uppercase tracking-widest">Total</span>
-                                    <span>${(currentTotal + (typeof delivery === 'number' ? delivery : 0)).toLocaleString()}</span>
+                            ) : (
+                                // SI ESTÁ CERRADO: Muestra mensaje de cerrado
+                                <div className="text-center py-20 animate-fade-in">
+                                    <span className="text-6xl">🌙</span>
+                                    <h3 className="text-3xl font-black gold-text italic mt-6 uppercase">Local Cerrado</h3>
+                                    <p className="text-zinc-400 mt-4 font-bold uppercase text-sm">Nuestro horario es de {config.open || 0}:00 a {config.close || 24}:00</p>
+                                    <button onClick={()=>setIsCartOpen(false)} className="mt-8 bg-white/10 py-3 px-6 rounded-full font-black uppercase text-xs">Volver al Menú</button>
                                 </div>
-                                <button onClick={handleSend} disabled={!client.name || (client.type==='Domicilio' && typeof delivery !== 'number') || cart.length === 0} className="w-full py-6 rounded-full gold-bg font-black text-xl uppercase shadow-2xl transition-all">ENVIAR PEDIDO</button>
-                            </div>
+                            )}
+                            {/* --- FIN DE LA CORRECCIÓN --- */}
+
                         </div>
                     </div>
                 )}
@@ -336,7 +348,7 @@
         if(!auth) return (
             <div className="admin-view flex flex-col items-center justify-center p-10 text-center text-white min-h-screen">
                 <img src="https://raw.githubusercontent.com/andrescaifucardenas-hue/CAIFU/main/logo.png.png" className="w-24 mb-6" />
-                <h2 className="text-2xl font-black gold-text mb-8 uppercase italic tracking-widest">ADMIN CAIFU v950</h2>
+                <h2 className="text-2xl font-black gold-text mb-8 uppercase italic tracking-widest">ADMIN CAIFU v960</h2>
                 <button onClick={()=>setAuth(true)} className="gold-bg w-full py-6 rounded-[2rem] font-black uppercase text-xl shadow-2xl">Entrar</button>
             </div>
         );
@@ -344,7 +356,7 @@
         return (
             <div className="admin-view p-5 pb-24 text-white animate-fade-in min-h-screen">
                 <div className="flex justify-between items-center mb-6 pb-4 border-b border-white/10">
-                    <h2 className="text-xl font-black gold-text italic uppercase">Panel v950</h2>
+                    <h2 className="text-xl font-black gold-text italic uppercase">Panel v960</h2>
                     <button onClick={onExit} className="bg-red-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase shadow-lg">Salir</button>
                 </div>
                 <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2">
