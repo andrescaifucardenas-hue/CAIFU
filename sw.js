@@ -1,5 +1,5 @@
 // Cambia la primera línea a v900
-const CACHE_NAME = 'caifu-v970-iosfix';
+const CACHE_NAME = 'caifu-v980-planb';
 const urlsToCache = [ './', './index.html' ];
 
 self.addEventListener('install', e => {
